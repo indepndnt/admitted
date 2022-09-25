@@ -1,0 +1,7 @@
+cssselect
+lxml
+psutil
+requests
+selenium
+urllib3
+-e .

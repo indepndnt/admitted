@@ -1,0 +1,6 @@
+.coverage
+coverage.xml
+*.egg-info/
+.idea/
+__pycache__/
+.pytest_cache/
