@@ -1,5 +1,0 @@
-[run]
-source=webfetch
-include=src/webfetch/*
-[report]
-skip_empty=true
