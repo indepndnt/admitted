@@ -6,7 +6,7 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from .element import Element
 from .exceptions import NavigationError
-from ._locator import find_any, match_url
+from . import _locator
 from ._manager import ChromeManager
 from ._outside import outside_request
 from ._window import Window
@@ -49,7 +49,7 @@ class BasePage:
         Raises:
           TimeoutException: No element matching the specified selector was found.
         """
-        return find_any(self.browser, By.CSS_SELECTOR, selector, multiple, mapping)
+        return _locator.find_any(self.browser, By.CSS_SELECTOR, selector, multiple, mapping)
 
     def xpath(
         self,
@@ -70,7 +70,7 @@ class BasePage:
         Raises:
           TimeoutException: No element matching the specified XPath was found.
         """
-        return find_any(self.browser, By.XPATH, path, multiple, mapping)
+        return _locator.find_any(self.browser, By.XPATH, path, multiple, mapping)
 
     def switch_id(self, options: dict[str, Callable[[Element], Element]]) -> Element:
         """Wait for any of several elements to become available and return the first one found.
@@ -86,7 +86,8 @@ class BasePage:
           TimeoutException: No element with one of the specified IDs was found within the allotted time.
         """
         ids = options.keys()
-        element = find_any(self.browser, By.CSS_SELECTOR, ", ".join([f'[id="{id_}"]' for id_ in ids]), False, None)
+        selector = ", ".join([f'[id="{id_}"]' for id_ in ids])
+        element = _locator.find_any(self.browser, By.CSS_SELECTOR, selector, False, None)
         found = element.get_property("id")
         return options[found](element)
 
@@ -95,7 +96,7 @@ class BasePage:
         """Return the current URL that Chrome is on."""
         return self.browser.current_url
 
-    def _navigate(
+    def _navigate(  # pylint:disable=too-many-arguments
         self,
         url: str,
         callback: Callable[[], bool] | None = None,
@@ -120,11 +121,11 @@ class BasePage:
                 self.browser.get(url)
                 success = True
             except WebDriverException as exc:
-                logger.debug(f"Error on try {retry}: {exc}.")
+                logger.debug("Error on try %s: %s.", retry, exc)
                 last_exception = exc
                 success = False
             # if we got where we were going, we're done!
-            if enforce_url and not match_url(self.current_url, url):
+            if enforce_url and not _locator.match_url(self.current_url, url):
                 success = False
             # if we've exhausted retries, raise the error
             if not success and retry >= retries:

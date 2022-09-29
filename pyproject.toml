@@ -51,19 +51,17 @@ line-length = 120
 target-version = ["py310", "py311"]
 
 [tool.coverage.run]
-source = "webfetch"
-include = "src/webfetch/*"
+source = ["webfetch"]
 
 [tool.coverage.report]
 skip_empty = true
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "--cov -ra -l"  # --color=yes --code-highlight=yes
+addopts = "--cov -ra -l --color=yes --code-highlight=yes"
 testpaths = ["tests"]
 python_files = "*.py"
 log_auto_indent = "True"
-log_clu = "True"
+log_cli = "True"
 norecursedirs = ["__pycache__", "*.egg-info", ".*"]
 
 [tool.pylint.'MAIN']

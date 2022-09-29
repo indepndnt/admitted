@@ -1,5 +1,5 @@
 from __future__ import annotations
-from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl, urljoin
+from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 from typing import Any, Iterable
 from lxml import html
 from selenium.common.exceptions import JavascriptException
@@ -75,7 +75,7 @@ class Window:
                 if isinstance(payload, list):
                     query = payload
                 elif isinstance(payload, dict):
-                    query = [(key, value) for key, value in payload]
+                    query = list(payload.items())
                 else:
                     query = []
                 split = urlsplit(url)
@@ -93,5 +93,5 @@ class Window:
         if isinstance(response["data"], str):
             sample = response["data"][:256].lower()
             if sample.startswith("<!doctype html") or "<html" in sample:
-                response["html"] = html.parse(response["data"])
+                response["html"] = html.fromstring(response["data"])
         return response

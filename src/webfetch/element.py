@@ -2,7 +2,7 @@ from __future__ import annotations
 import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from ._locator import find_any
+from . import _locator
 
 
 class Element(WebElement):
@@ -41,7 +41,7 @@ class Element(WebElement):
         Raises:
           TimeoutException: No element matching the specified selector was found.
         """
-        return find_any(self.parent, By.CSS_SELECTOR, selector, multiple, mapping)
+        return _locator.find_any(self.parent, By.CSS_SELECTOR, selector, multiple, mapping)
 
     def xpath(
         self,
@@ -62,7 +62,7 @@ class Element(WebElement):
         Raises:
           TimeoutException: No element matching the specified XPath was found.
         """
-        return find_any(self.parent, By.XPATH, path, multiple, mapping)
+        return _locator.find_any(self.parent, By.XPATH, path, multiple, mapping)
 
     def scroll_to(self) -> None:
         self.parent.execute_script("arguments[0].scrollIntoView();", self)

@@ -14,7 +14,7 @@ import psutil
 from selenium.webdriver.chrome import options, service, webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 
-from ._outside import outside_request
+from . import _outside
 from .element import Element
 from .exceptions import ChromeDriverVersionError
 
@@ -69,7 +69,9 @@ class ChromeManager(webdriver.WebDriver):
         # get PIDs of the Chromedriver and Chrome processes as they
         # tend to not properly exit when the script has completed
         chromedriver_process = psutil.Process(self.service.process.pid)
-        pids = [p.pid for p in chromedriver_process.children(recursive=True)] + [chromedriver_process.pid]
+        pids = [p.pid for p in chromedriver_process.children(recursive=True)]
+        if chromedriver_process.name() == self._var.chromedriver_filename:
+            pids.append(chromedriver_process.pid)
 
         # register a function to kill Chromedriver and Chrome at exit
         def kill_pids(driver: webdriver.WebDriver, process_ids: list[int]) -> None:
@@ -136,22 +138,21 @@ class ChromeManager(webdriver.WebDriver):
 
         # get recommended chromedriver version
         url = f"https://chromedriver.storage.googleapis.com/LATEST_RELEASE_{chrome_version}"
-        recommended = outside_request("GET", url, "text")
+        recommended = _outside.outside_request("GET", url, "text")
         if recommended == chromedriver_version:
             return ""
         chromedriver_version_parts = [int(p) for p in chromedriver_version.split(".")]
         recommended_parts = [int(p) for p in recommended.split(".")]
-        if any([cd < r for cd, r in zip(chromedriver_version_parts, recommended_parts)]):
+        if any((cd < r for cd, r in zip(chromedriver_version_parts, recommended_parts))):
             return recommended
-        else:
-            raise ChromeDriverVersionError(
-                f"This will Never Happen\u2122: somehow we have a newer version of ChromeDriver "
-                f"({chromedriver_version}) than is recommended ({recommended})."
-            )
+        raise ChromeDriverVersionError(
+            f"This will Never Happen\u2122: somehow we have a newer version of ChromeDriver "
+            f"({chromedriver_version}) than is recommended ({recommended})."
+        )
 
     def _get_chrome_version(self) -> str:
         """Return the current Google Chrome version on this system."""
-        out = subprocess.run(self._var.chrome_version_command, stdout=subprocess.PIPE)
+        out = subprocess.run(self._var.chrome_version_command, stdout=subprocess.PIPE, check=False)
         if out.returncode != 0:
             raise ChromeDriverVersionError(f"Failed to get Chrome version, returned {out}")
         full_chrome_version = out.stdout.decode().strip().rsplit(" ", 1)[-1]
@@ -164,7 +165,7 @@ class ChromeManager(webdriver.WebDriver):
         if not filepath.is_file():
             # ChromeDriver is not installed
             return "0.0.0.0"
-        out = subprocess.run([str(filepath), "--version"], stdout=subprocess.PIPE)
+        out = subprocess.run([str(filepath), "--version"], stdout=subprocess.PIPE, check=False)
         if out.returncode != 0:
             raise ChromeDriverVersionError(f"Failed to get ChromeDriver version, returned {out}")
         chromedriver_version = out.stdout.decode().split()[1]
@@ -173,7 +174,7 @@ class ChromeManager(webdriver.WebDriver):
     def _upgrade_chromedriver(self, version: str) -> None:
         """Download, unzip, and install ChromeDriver."""
         url = f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_{self._var.platform}.zip"
-        fp = outside_request("GET", url, TemporaryFile())
+        fp = _outside.outside_request("GET", url, TemporaryFile())
         # replace current chromedriver with downloaded version
         path = self._var.user_bin_path
         filename = self._var.chromedriver_filename
@@ -193,7 +194,7 @@ class ChromeManager(webdriver.WebDriver):
         """For debugging: Quick dump of current page content to console as text."""
         try:
             # noinspection PyPackageRequirements
-            from html2text import HTML2Text
+            from html2text import HTML2Text  # pylint:disable=import-outside-toplevel
         except ImportError:
             print(self.page_source)
             return
@@ -224,13 +225,13 @@ class PlatformVariables:
 
     def __init__(self):
         self.chromedriver_filename: str = "chromedriver"
-        system_type = system().lower()
-        if system_type == "windows":
+        system_type = system()
+        if system_type == "Windows":
             self._set_windows()
-        elif system_type == "linux":
+        elif system_type == "Linux":
             self._set_linux()
-        elif system_type == "darwin":
-            processor_type = processor().lower()
+        elif system_type == "Darwin":
+            processor_type = processor()
             self._set_mac(processor_type)
         else:
             raise ChromeDriverVersionError(f"{system()} operating system not supported.")
