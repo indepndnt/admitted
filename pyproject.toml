@@ -37,6 +37,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "toml",
+    "lxml-stubs",
 ]
 
 [tool.setuptools]

@@ -1,9 +1,22 @@
 from __future__ import annotations
+import json
+from string import Template
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 from typing import Any, Iterable
-from lxml import html
 from selenium.common.exceptions import JavascriptException
 from ._constants import DEFAULT_WINDOW_ATTRIBUTES
+from .models import Response
+
+FETCH_SCRIPT = """
+const r = await fetch('${url}', ${options}).catch(e => e);
+if (typeof r.clone !== 'function') return {error: {name: e.name, message: e.message}};
+const headers = [];
+for ([h, v] of r.headers.entries()) {headers.push([h, v])};
+const body = new Uint8Array(await r.clone().arrayBuffer().catch(e => null));
+const text = await r.clone().text().catch(e => null);
+const json = await r.clone().json().catch(e => null);
+return {url: r.url, status: r.status, reason: r.statusText, headers, body, text, json};
+"""
 
 
 class Window:
@@ -18,6 +31,8 @@ class Window:
       scroll_to_top: Scroll the window to the top of the page.
       fetch: Make an http request from the current page in Chrome with credentials if same origin.
     """
+
+    _fetch_script = Template(FETCH_SCRIPT)
 
     def __init__(self, driver):
         # shortcut to enable e.g. chrome.window.run("javascript", arg=val)
@@ -48,7 +63,7 @@ class Window:
         url: str,
         payload: dict | list | str | None = None,
         headers: dict[str, str] | None = None,
-    ):
+    ) -> Response:
         """Make a fetch request from the current page in Chrome with credentials (site cookies, etc).
 
         Args:
@@ -58,40 +73,27 @@ class Window:
           headers: Additional headers; e.g. {"Content-Type": "application/json"}.
 
         Returns:
-          A dictionary with the keys:
-            status: The HTTP response status code.
-            url: The URL ended up on after the request.
-            data: Either the parsed JSON response or text content of the response body.
-            html: The parsed HTML tree of the response content if an HTML document was detected.
+          A Response object.
         """
         method = method.upper()
-        options = {"cache": "no-store", "credentials": "include", "headers": headers or {}}
+        options = {"method": method, "cache": "no-store", "credentials": "include", "headers": headers or {}}
         if method in ("POST", "PUT", "PATCH"):
-            body = payload
             options["headers"]["Content-Type"] = "application/json"
-        else:
-            body = None
-            if payload is not None:
-                if isinstance(payload, list):
-                    query = payload
-                elif isinstance(payload, dict):
-                    query = list(payload.items())
-                else:
-                    query = []
-                split = urlsplit(url)
-                if split.query:
-                    query.extend(parse_qsl(split.query))
-                url_query = urlencode(payload) if len(query) == 0 else urlencode(query)
-                url = urlunsplit((split.scheme, split.netloc, split.path, url_query, split.fragment))
-        script = (
-            "const opt = {method: arguments[0], ...arguments[2], body: arguments[3] && JSON.stringify(arguments[3])};"
-            "const resp = await fetch(arguments[1], opt);"
-            "const data = await resp.clone().json().catch(e => resp.text());"
-            "return {data, status: resp.status, url: resp.url, html: null};"
-        )
-        response = self.run(script, method, url, options, body)
-        if isinstance(response["data"], str):
-            sample = response["data"][:256].lower()
-            if sample.startswith("<!doctype html") or "<html" in sample:
-                response["html"] = html.fromstring(response["data"])
-        return response
+            options["body"] = json.dumps(payload)
+        elif payload is not None:
+            if isinstance(payload, list):
+                query = payload
+            elif isinstance(payload, dict):
+                query = list(payload.items())
+            else:
+                query = []
+            split = urlsplit(url)
+            if split.query:
+                query.extend(parse_qsl(split.query))
+            url_query = urlencode(payload) if len(query) == 0 else urlencode(query)
+            url = urlunsplit((split.scheme, split.netloc, split.path, url_query, split.fragment))
+        script = self._fetch_script.safe_substitute({"options": json.dumps(options), "url": url})
+        response = self.run(script)
+        # for debugging, script available as `response._fetch_raw_response["script"]`
+        response["script"] = script
+        return Response.from_fetch(response)

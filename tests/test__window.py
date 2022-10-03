@@ -1,5 +1,7 @@
 from webfetch import _window
 
+URL = "https://www.example.com"
+
 
 def get_instance_with_mock_run(return_value):
     class Driver:
@@ -47,28 +49,46 @@ def test_scroll_to_top():
 
 def test_fetch_get_dict():
     # Antecedent
-    instance = get_instance_with_mock_run({"data": ""})
+    fetch_value = {
+        "url": URL,
+        "status": 200,
+        "reason": "OK",
+        "headers": [],
+        "body": b'{"data": ""}',
+        "text": '{"data": ""}',
+        "json": {"data": ""},
+    }
+    instance = get_instance_with_mock_run(fetch_value)
 
     # Behavior
-    value = instance.fetch("get", "https://www.example.com", {"q": "test"}, None)
+    response = instance.fetch("get", URL, {"q": "test"}, None)
 
     # Consequence
-    assert value["data"] == ""
-    assert value["args"][0] == "GET"
-    assert value["args"][1] == "https://www.example.com?q=test"
+    assert response.json == {"data": ""}
+    assert response.reason == "OK"
+    assert f"{URL}?q=test" in response._fetch_raw_response["script"]
 
 
 def test_fetch_get_list():
     # Antecedent
-    instance = get_instance_with_mock_run({"data": ""})
+    fetch_value = {
+        "url": URL,
+        "status": 200,
+        "reason": "OK",
+        "headers": [],
+        "body": b'["data", ""]',
+        "text": '["data": ""]',
+        "json": ["data", ""],
+    }
+    instance = get_instance_with_mock_run(fetch_value)
 
     # Behavior
-    value = instance.fetch("get", "https://www.example.com", [("q", "test")], None)
+    response = instance.fetch("get", URL, [("q", "test")], None)
 
     # Consequence
-    assert value["data"] == ""
-    assert value["args"][0] == "GET"
-    assert value["args"][1] == "https://www.example.com?q=test"
+    assert response.json == ["data", ""]
+    assert response.reason == "OK"
+    assert f"{URL}?q=test" in response._fetch_raw_response["script"]
 
 
 def test_fetch_get_html():
@@ -77,23 +97,41 @@ def test_fetch_get_html():
 <html><head></head><body>
 <h1>Test Page</h1><p>Success!</p>
 </body></html>"""
-    instance = get_instance_with_mock_run({"data": html})
+    fetch_value = {
+        "url": URL,
+        "status": 200,
+        "reason": "OK",
+        "headers": [],
+        "body": html.encode(),
+        "text": html,
+        "json": None,
+    }
+    instance = get_instance_with_mock_run(fetch_value)
 
     # Behavior
-    value = instance.fetch("get", "https://www.example.com", None, None)
+    response = instance.fetch("get", "https://www.example.com", None, None)
 
     # Consequence
-    assert value["html"].xpath("/html/body/h1")[0].text == "Test Page"
-    assert value["html"].xpath("/html/body/p")[0].text == "Success!"
+    assert response.html.xpath("/html/body/h1")[0].text == "Test Page"
+    assert response.html.xpath("/html/body/p")[0].text == "Success!"
 
 
 def test_fetch_post():
     # Antecedent
-    instance = get_instance_with_mock_run({"status": 0, "url": "", "data": "", "html": None})
+    fetch_value = {
+        "url": URL,
+        "status": 200,
+        "reason": "OK",
+        "headers": [],
+        "body": b"",
+        "text": "",
+        "json": None,
+    }
+    instance = get_instance_with_mock_run(fetch_value)
 
     # Behavior
-    value = instance.fetch("post", "url", {"key": "value"}, {"x-header": "test-value"})
+    response = instance.fetch("post", "url", {"key": "value"}, {"x-header": "test-value"})
 
     # Consequence
-    assert value["args"][2]["headers"]["Content-Type"] == "application/json"
-    assert value["args"][2]["headers"]["x-header"] == "test-value"
+    assert '"Content-Type": "application/json"' in response._fetch_raw_response["script"]
+    assert '"x-header": "test-value"' in response._fetch_raw_response["script"]

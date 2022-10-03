@@ -72,25 +72,7 @@ class ChromeManager(webdriver.WebDriver):
         pids = [p.pid for p in chromedriver_process.children(recursive=True)]
         if chromedriver_process.name() == self._var.chromedriver_filename:
             pids.append(chromedriver_process.pid)
-
         # register a function to kill Chromedriver and Chrome at exit
-        def kill_pids(driver: webdriver.WebDriver, process_ids: list[int]) -> None:
-            # first let the ChromeDriver service shut itself down
-            driver.quit()
-            # for all spawned Chrome/ChromeDriver processes, first ask nicely, then force terminate
-            for signal in (SIGKILL, SIGTERM):
-                for pid in process_ids:
-                    if not psutil.pid_exists(pid):
-                        continue
-                    try:
-                        kill(pid, signal)
-                    except ProcessLookupError:
-                        pass
-                process_ids = [pid for pid in process_ids if psutil.pid_exists(pid)]
-                if not process_ids:
-                    break
-                time.sleep(0.1)
-
         atexit.register(kill_pids, self, pids)
 
     @property
@@ -138,7 +120,7 @@ class ChromeManager(webdriver.WebDriver):
 
         # get recommended chromedriver version
         url = f"https://chromedriver.storage.googleapis.com/LATEST_RELEASE_{chrome_version}"
-        recommended = _outside.outside_request("GET", url, "text")
+        recommended = _outside.outside_request("GET", url).text
         if recommended == chromedriver_version:
             return ""
         chromedriver_version_parts = [int(p) for p in chromedriver_version.split(".")]
@@ -174,7 +156,7 @@ class ChromeManager(webdriver.WebDriver):
     def _upgrade_chromedriver(self, version: str) -> None:
         """Download, unzip, and install ChromeDriver."""
         url = f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_{self._var.platform}.zip"
-        fp = _outside.outside_request("GET", url, TemporaryFile())
+        fp = _outside.outside_request("GET", url, stream=True).write_stream(TemporaryFile())
         # replace current chromedriver with downloaded version
         path = self._var.user_bin_path
         filename = self._var.chromedriver_filename
@@ -262,3 +244,22 @@ class PlatformVariables:
         self.user_bin_path = Path("/usr/local/bin")
         self.user_data_path = str(HOME / "Library" / "Application Support" / "Google" / "Chrome" / "Default")
         self.chrome_version_command = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--version"]
+
+
+def kill_pids(driver: webdriver.WebDriver, process_ids: list[int]) -> None:
+    """Function registered in `atexit` to kill Chromedriver and Chrome so we don't leave orphan processes."""
+    # first let the ChromeDriver service shut itself down
+    driver.quit()
+    # for all spawned Chrome/ChromeDriver processes, first ask nicely, then force terminate
+    for signal in (SIGKILL, SIGTERM):
+        for pid in process_ids:
+            if not psutil.pid_exists(pid):
+                continue
+            try:
+                kill(pid, signal)
+            except ProcessLookupError:
+                pass
+        process_ids = [pid for pid in process_ids if psutil.pid_exists(pid)]
+        if not process_ids:
+            break
+        time.sleep(0.1)
