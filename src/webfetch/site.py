@@ -50,7 +50,10 @@ class Site(BasePage):
         """Navigate to login page and authenticate to the site, unless already logged in."""
         if self.is_authenticated():
             return self
-        if not match_url(self.current_url, self.login_url):
+        # if domain and path match the login url assume we're where we need to be
+        # ignoring subdomains and query means we could be sent to auth.example.com/login?returnTo=somePage
+        # and we won't lose the redirect by navigating to the bare login page
+        if not match_url(self.current_url, self.login_url, ignore_query=True):
             self._navigate(url=self.login_url)
         return self._do_login()
 

@@ -29,8 +29,6 @@ and `page.window[key]` will access global variables.
 `page.browser.debug_show_page` will dump a text version of
 the current page to the console (if `html2text` is
 installed, otherwise the raw page source).
-`site.browser.debugger_url` is the address to find the
-Chrome debugger to access the browser environment.
 
 # Installation
 #### Requirement format for this GitHub repo as a dependency
@@ -110,10 +108,22 @@ page.do_page_action()
 print(f"Non-default global variables are {page.window.new_keys()}")
 print(f"The document title is '{page.window['document.title']}'.")
 response = page.window.fetch(method="post", url="/api/option", payload={"showInterest": True}, headers={"x-snowflake": "example-option-header"})
-print(f"Fetch returned '{response['data']}'.")
-response = page.outside_request(method="get", url="https://www.google.com", destination="text")
-print(f"The length of Google's page source is {len(response)} characters.")
+print(f"Fetch returned '{response.json}'.")
+response = page.outside_request(method="get", url="https://www.google.com")
+print(f"The length of Google's page source is {len(response.text)} characters.")
 ```
+
+### HTTP Response API
+The `Page.window.fetch` and `Page.outside_request` methods
+both return a `Response` object with the following API.
+- `content` property: Response body as `bytes`.
+- `text` property: Response body as `str`, or `None`.
+- `json` property: JSON parsed response body, or `None`.
+- `html` property: `lxml` parsed HTML element tree, or `None`.
+- `write_stream` method: Stream response data to the provided file pointer if `outside_request` method was called with `stream=True`, otherwise writes `Response.content`.
+  - `destination` argument: file pointer for a file opened with a write binary mode.
+  - `chunck_size` argument: (optional) number of bytes to write at a time.
+  - Returns `destination`.
 
 # References
 - [Selenium Python bindings documentation](https://www.selenium.dev/selenium/docs/api/py/index.html)

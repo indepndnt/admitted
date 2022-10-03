@@ -3,7 +3,7 @@ import urllib3
 from webfetch import _outside
 
 
-def mock_request(method, url, _, headers=None, **kwargs):
+def mock_request(method, url, fields=None, headers=None, **kwargs):
     response = urllib3.HTTPResponse(
         body=kwargs["test"],
         headers=headers,

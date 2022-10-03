@@ -1,3 +1,4 @@
+import pytest
 from webfetch import site, page
 
 
@@ -6,63 +7,92 @@ class SiteTest(site.Site):
         self.browser = browser
         self.login_url = "https://www.example.com/login"
         self.credentials = {"username": "tester", "password": "secret"}
+        self.retries = 1
         self._init_login()
 
     def _init_login(self):
-        self._authenticated = False
+        self.browser._authenticated = False
 
     def _do_login(self) -> "SiteTest":
-        self._authenticated = True
+        self.browser._authenticated = True
         return self
 
-    def is_authenticated(self) -> bool:
-        return self._authenticated
+    # we override _navigate only to ensure retry_wait is zero so tests don't take forever
+    def _navigate(self, url, callback=None, *, retry_wait=2, **kwargs):
+        super()._navigate(url, callback, retry_wait=0, **kwargs)
 
-    def _navigate(self, url, callback=None, retry_wait=10, retries_override=0, enforce_url=False) -> None:
-        return
+    # we put an _authenticated flag in the mock chromebrowser to simulate non-auth redirects.
+    def is_authenticated(self) -> bool:
+        return self.browser._authenticated is True
 
 
 class PageTest(page.Page):
     def _init_page(self) -> None:
         self.status = "test"
 
-    def _navigate(self, url, callback=None, retry_wait=10, retries_override=0, enforce_url=False) -> None:
-        if callback:
-            callback()
-        return
+    # use the overridden _navigate we defined in SiteTest
+    @property
+    def _navigate(self):
+        return self.site._navigate
 
 
 def test_login(chromedriver):
-    # Antecedent
+    # Antecedent: objects instantiated
     s = SiteTest(chromedriver)
     p = PageTest(s)
 
-    # Behavior
+    # Behavior: call the login method
     s.login()
 
-    # Consequence
+    # Consequence: site._do_login has been called
     assert p.site.is_authenticated() is True
 
 
 def test_no_login(chromedriver):
-    # Antecedent
+    # Antecedent: objects instantiated
     s = SiteTest(chromedriver)
     p = PageTest(s)
 
-    # Behavior
+    # Behavior: exists
 
-    # Consequence
+    # Consequence: site._do_login has not been called
     assert p.site.is_authenticated() is False
 
 
 def test_page_login(chromedriver):
-    # Antecedent
+    # Antecedent: objects instantiated
     s = SiteTest(chromedriver)
     p = PageTest(s)
 
-    # Behavior
+    # Behavior: navigate to a url
     p.navigate("https://www.example.com/secret")
 
-    # Consequence
+    # Consequence: site._do_login and page._init_page have been called
     assert s.is_authenticated() is True
     assert p.status == "test"
+
+
+def test_base_site_methods_not_implemented():
+    # Antecedent: Site instance created
+    s = object.__new__(site.Site)
+
+    # Behavior: call abstract methods
+    with pytest.raises(NotImplementedError):
+        s._init_login()
+    with pytest.raises(NotImplementedError):
+        s._do_login()
+    with pytest.raises(NotImplementedError):
+        s.is_authenticated()
+
+    # Consequence: NotImplementedError raised
+
+
+def test_base_page_methods_not_implemented():
+    # Antecedent: Page instance created
+    p = object.__new__(page.Page)
+
+    # Behavior: call abstract methods
+    with pytest.raises(NotImplementedError):
+        p._init_page()
+
+    # Consequence: NotImplementedError raised

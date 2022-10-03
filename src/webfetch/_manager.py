@@ -4,7 +4,7 @@ import logging
 from os import getenv, kill
 from pathlib import Path
 from platform import system, processor
-from signal import SIGKILL, SIGTERM
+import signal
 import subprocess
 from tempfile import TemporaryFile
 import time
@@ -61,10 +61,6 @@ class ChromeManager(webdriver.WebDriver):
             logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
             logging.getLogger("filelock").setLevel(logging.WARNING)
         self.wait = ChromeWait(self, timeout=timeout)
-        debugger = self.capabilities["goog:chromeOptions"]["debuggerAddress"]
-        # noinspection HttpUrlsUsage
-        self.debugger_url = f"http://{debugger}"
-        logger.info("Chrome Debugger at %s", self.debugger_url)
 
         # get PIDs of the Chromedriver and Chrome processes as they
         # tend to not properly exit when the script has completed
@@ -251,12 +247,12 @@ def kill_pids(driver: webdriver.WebDriver, process_ids: list[int]) -> None:
     # first let the ChromeDriver service shut itself down
     driver.quit()
     # for all spawned Chrome/ChromeDriver processes, first ask nicely, then force terminate
-    for signal in (SIGKILL, SIGTERM):
+    for process_signal in (getattr(signal, s) for s in ("SIGTERM", "SIGKILL") if hasattr(signal, s)):
         for pid in process_ids:
             if not psutil.pid_exists(pid):
                 continue
             try:
-                kill(pid, signal)
+                kill(pid, process_signal)
             except ProcessLookupError:
                 pass
         process_ids = [pid for pid in process_ids if psutil.pid_exists(pid)]

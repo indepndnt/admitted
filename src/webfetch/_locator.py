@@ -39,7 +39,7 @@ def expand_locator(target: str, mapping: dict[str, str]) -> str:
     return target
 
 
-def match_url(url1: str, url2: str) -> bool:
+def match_url(url1: str, url2: str, ignore_query: bool = False) -> bool:
     """Report whether the domain, path, and query of both URLs match."""
     url_a = urlparse(url1)
     url_b = urlparse(url2)
@@ -49,4 +49,4 @@ def match_url(url1: str, url2: str) -> bool:
     host_b = url_b.netloc.split(".")
     if host_a[-2:] != host_b[-2:]:
         return False
-    return url_a.query == url_b.query
+    return ignore_query or url_a.query == url_b.query

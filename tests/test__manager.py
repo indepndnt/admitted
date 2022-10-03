@@ -117,7 +117,6 @@ def test_get_chrome_version(monkeypatch):
 def test_instantiate_chrome_manager(monkeypatch):
     # Antecedent
     monkeypatch.setattr(webdriver.WebDriver, "start_session", lambda *a, **kw: None)
-    monkeypatch.setattr(_manager.ChromeManager, "capabilities", {"goog:chromeOptions": {"debuggerAddress": "test.com"}})
     monkeypatch.setattr(_manager.ChromeManager, "_upgrade_chromedriver", lambda *a: None)
     response = models.Response("", 200, "OK", None)
     response._text = "42.42.42.43"
@@ -129,13 +128,11 @@ def test_instantiate_chrome_manager(monkeypatch):
     # Behavior
     instance = _manager.ChromeManager(0)
     subprocess.run = None
-    has_debugger_url = instance.debugger_url
     has_chrome_wait_instance = isinstance(instance.wait, _manager.ChromeWait)
     has_service_process = instance.service.process
     # trigger kill_pids
     _manager.kill_pids(instance, [])
 
     # Consequence
-    assert has_debugger_url == "http://test.com"
     assert has_chrome_wait_instance is True
     assert has_service_process.session_id == "terminated"

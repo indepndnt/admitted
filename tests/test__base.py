@@ -1,43 +1,7 @@
 import pytest
-from selenium.common.exceptions import WebDriverException
 from webfetch import _locator
 from webfetch._base import BasePage
 from webfetch.exceptions import NavigationError
-from webfetch._manager import ChromeManager
-
-
-class Mock(ChromeManager):
-    def __init__(self):
-        self._current_url = "https://www.example.com"
-        self.callback_was_called = False
-
-    def execute_script(self, **kwargs):
-        return kwargs
-
-    @property
-    def current_url(self):
-        return self._current_url
-
-    def get(self, url):
-        if url == "https://www.example.com/fail":
-            raise WebDriverException
-
-    def find_any(self, driver, by, target, multiple, mapping):
-        return self.MockElement(driver, by, target, multiple, mapping)
-
-    class MockElement:
-        def __init__(self, driver, by, target, multiple, mapping):
-            self.id = "id_one"
-            self.driver = driver
-            self.by = by
-            self.target = target
-            self.multiple = multiple
-            self.mapping = mapping
-
-        def get_property(self, item):
-            if item != "id":
-                raise TypeError("I think you wrote this test wrong.")
-            return self.id
 
 
 def test_instantiate_base(chromedriver):
@@ -54,12 +18,12 @@ def test_instantiate_base(chromedriver):
 
 
 def test_css_finder(monkeypatch, chromedriver):
-    # Antecedent
+    # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver)
     monkeypatch.setattr(_locator, "find_any", instance.browser.find_any)
     selector = '.test, [method="css"]'
 
-    # Behavior
+    # Behavior: finder method is called
     element = instance.css(selector, False, None)
 
     # Consequence: returns the result of find_any, in this case our monkeypatch
@@ -68,12 +32,12 @@ def test_css_finder(monkeypatch, chromedriver):
 
 
 def test_xpath_finder(monkeypatch, chromedriver):
-    # Antecedent
+    # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver)
     monkeypatch.setattr(_locator, "find_any", instance.browser.find_any)
     xpath = "//[contains(@class,'test') and @method='xpath']"
 
-    # Behavior
+    # Behavior: finder method is called
     element = instance.xpath(xpath, True, None)
 
     # Consequence: returns the result of find_any, in this case our monkeypatch
@@ -82,28 +46,28 @@ def test_xpath_finder(monkeypatch, chromedriver):
 
 
 def test_switch_finder(monkeypatch, chromedriver):
-    # Antecedent
+    # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver)
     monkeypatch.setattr(_locator, "find_any", instance.browser.find_any)
 
     def callback(el):
-        instance.browser.callback_was_called = True
+        instance.browser.callback_was_called += 1
         return el
 
-    # Behavior
+    # Behavior: finder method is called
     element = instance.switch_id({"id_one": callback, "id_two": callback})
 
-    # Consequence
-    assert instance.browser.callback_was_called is True
+    # Consequence: method locator is as expected and called one of the callbacks
+    assert instance.browser.callback_was_called == 1
     assert element.by == "css selector"
     assert element.target == '[id="id_one"], [id="id_two"]'
 
 
 def test_current_url(chromedriver):
-    # Antecedent
+    # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver)
 
-    # Behavior
+    # Behavior: read current_url property
     url = instance.current_url
 
     # Consequence: returns result of call to property method instance.browser.current_url
@@ -111,33 +75,44 @@ def test_current_url(chromedriver):
 
 
 def test_navigate_chrome_success(chromedriver):
-    # Antecedent
+    # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver)
 
-    def callback():
-        instance.browser.callback_was_called = True
+    def callback(retry: int):
+        instance.browser.callback_was_called += 1
         return True
 
-    # Behavior
-    instance._navigate("https://www.example.com/test", callback, 0, 0, False)
+    # Behavior: call _navigate method
+    instance._navigate("https://www.example.com/test", callback, retry_wait=0, retries_override=0, enforce_url=True)
 
-    # Consequence
-    assert instance.browser.callback_was_called is True
+    # Consequence: succeeded without reaching the pre-pause callback
+    assert instance.browser.callback_was_called == 0
 
 
 def test_navigate_chrome_fail(chromedriver):
-    # Antecedent
+    # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver)
 
-    # Behavior, Consequence
+    def callback(retry: int):
+        instance.browser.callback_was_called += 1
+        return False
+
+    # Behavior: call _navigate method
     with pytest.raises(NavigationError, match=r"^Failed after \d tries navigating to .*"):
-        instance._navigate("https://www.example.com/fail", None, 0, 1, False)
+        instance._navigate(
+            "https://www.example.com/fail", callback, retry_wait=0, retries_override=2, enforce_url=False
+        )
+
+    # Consequence: exception was raised after pre-pause callback was called after each attempt
+    assert instance.browser.callback_was_called == 3
 
 
 def test_navigate_chrome_mismatch(chromedriver):
-    # Antecedent
+    # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver)
 
-    # Behavior, Consequence
+    # Behavior: call _navigate method
     with pytest.raises(NavigationError, match=r"^Failed after \d tries navigating to .*"):
-        instance._navigate("https://www.example.com/unreachable", None, 0, 0, True)
+        instance._navigate("https://www.example.com/change", None, retry_wait=0, retries_override=0, enforce_url=True)
+
+    # Consequence: exception was raised as expected

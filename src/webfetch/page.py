@@ -28,12 +28,18 @@ class Page(BasePage):
           The current class instance.
         """
 
-        def try_login():
-            # check if we're logged in, and log back in if not
-            self.site.login()
+        def try_login(retry: int):
+            # we'll detour to login only the first time
+            if retry == 1:
+                # if we're already logged in, don't risk redirecting to login page
+                if not self.site.is_authenticated():
+                    # try to log back in and return False to retry navigating to our page
+                    self.site.login()
+            # returning True would override the failure status that resulted in this being called - if we
+            # succeeded logging in, we still want another retry to get to where we were originally navigating
             return False
 
-        self._navigate(url=url, callback=try_login, retry_wait=3, retries_override=2)
+        self._navigate(url=url, callback=try_login)
         return self
 
     def _init_page(self) -> None:

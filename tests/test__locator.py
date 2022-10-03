@@ -62,6 +62,18 @@ def test_match_url_success():
     assert result is True
 
 
+def test_match_url_ignoring_query():
+    # Antecedent
+    one_url = "http://example.com/home?ignored=false"
+    two_url = "https://www.sub.example.com/home"
+
+    # Behavior
+    result = match_url(one_url, two_url, ignore_query=True)
+
+    # Consequence
+    assert result is True
+
+
 def test_match_url_fail():
     # Antecedent
     one_url = "http://example.com/home"

@@ -96,22 +96,24 @@ class BasePage:
         """Return the current URL that Chrome is on."""
         return self.browser.current_url
 
-    def _navigate(  # pylint:disable=too-many-arguments
+    def _navigate(
         self,
         url: str,
-        callback: Callable[[], bool] | None = None,
-        retry_wait: int = 10,
+        callback: Callable[[int], bool] | None = None,
+        *,
+        retry_wait: int = 2,
         retries_override: int | None = None,
-        enforce_url: bool = False,
+        enforce_url: bool | str = True,
     ) -> None:
         """Navigate Chrome to the specified URL, retrying with exponential back-off.
 
         Args:
           url: The URL to navigate to.
           callback: Function to call before pause and retry, return True if navigation complete.
-          retry_wait: Number of seconds to wait for first retry if initial get fails.
-          retries_override: Number of times to attempt get, if other than instance default required.
-          enforce_url: Consider it an error if current_url != url after navigation.
+            Receives the attempt counter which starts at 1.
+          retry_wait: Number of seconds to wait for first retry if initial navigation fails.
+          retries_override: Number of times to attempt navigation, if other than instance default required.
+          enforce_url: True or the expected URL to consider it an error if current_url != url after navigation.
         """
         retries = self.retries if retries_override is None else retries_override
         retry = 0
@@ -119,22 +121,21 @@ class BasePage:
         while True:
             try:
                 self.browser.get(url)
-                success = True
+                if not enforce_url:
+                    break
+                # if we got where we were going, we're done!
+                expected_url = enforce_url if isinstance(enforce_url, str) else url
+                if _locator.match_url(self.current_url, expected_url):
+                    break
             except WebDriverException as exc:
                 logger.debug("Error on try %s: %s.", retry, exc)
                 last_exception = exc
-                success = False
-            # if we got where we were going, we're done!
-            if enforce_url and not _locator.match_url(self.current_url, url):
-                success = False
-            # if we've exhausted retries, raise the error
-            if not success and retry >= retries:
-                raise NavigationError(f"Failed after {retry + 1} tries navigating to {url}.") from last_exception
-            # check if callback signals exit
-            if callback is not None:
-                success = success and callback()
-            if success:
-                break
             retry += 1
+            # check if callback signals exit
+            if callback is not None and callback(retry):
+                break
+            # if we've exhausted retries, raise the error
+            if retry > retries:
+                raise NavigationError(f"Failed after {retry} tries navigating to {url}.") from last_exception
             pause = retry_wait * (retry**2)
             time.sleep(pause)

@@ -27,7 +27,8 @@ def chromedriver():
         def __init__(self):
             self._current_url = "https://www.example.com"
             self.session_id = "test"
-            self.callback_was_called = False
+            self.callback_was_called = 0
+            self._authenticated = None
 
         class wait:
             @staticmethod
@@ -45,8 +46,14 @@ def chromedriver():
             return self._current_url
 
         def get(self, url):
-            if url == "https://www.example.com/fail":
+            if url.endswith("fail"):
                 raise WebDriverException
+            if url.endswith("change"):
+                self._current_url = url.replace("change", "new")
+            elif url.endswith("secret") and not self._authenticated:
+                self._current_url = url.replace("secret", "blocked")
+            else:
+                self._current_url = url
 
         def find_any(self, driver, by, target, multiple, mapping):
             return self.MockElement(driver, by, target, multiple, mapping)
