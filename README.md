@@ -1,5 +1,7 @@
-# WebFetch
-This project is brand new. The API is 100% guaranteed to change. Also the name.
+# Admitted
+_/ədˈmɪtɪd/ verb : allowed entry (as to a place, fellowship, or privilege)_
+
+This project is brand new. The API is 100% guaranteed to change.
 
 This library aims to make automating tasks that require
 authentication on web sites simpler. In general it would
@@ -32,13 +34,13 @@ installed, otherwise the raw page source).
 
 # Installation
 #### Requirement format for this GitHub repo as a dependency
-`webfetch @ git+https://git@github.com/Accounting-Data-Solutions/webfetch@main`
+`admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
 
 #### pip
 This is not yet published on PyPI because I'm not sure I like the name.
 
 # Usage
-Generally, the `webfetch` API is intended to follow the
+Generally, the `admitted` API is intended to follow the
 [encouraged practice of page object models](https://www.selenium.dev/documentation/test_practices/encouraged/page_object_models/)
 by establishing a pattern of defining `Page` classes each
 with one initialization method that defines selectors for
@@ -53,7 +55,7 @@ testing if you are authenticated and repeating the login
 if necessary.
 
 ```python
-from webfetch import Site, Page
+from admitted import Site, Page
 
 class MySite(Site):
     def __init__(self):
@@ -146,6 +148,6 @@ black ${root} | while read line ; do
     git add ${file}
   fi
 done
-pylint -j2 -sn ${root}/src/webfetch
+pylint -j2 -sn ${root}/src/admitted
 pytest -x
 ```

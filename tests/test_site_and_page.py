@@ -1,14 +1,10 @@
 import pytest
-from webfetch import site, page
+from admitted import site, page
 
 
 class SiteTest(site.Site):
-    def __init__(self, browser):
-        self.browser = browser
-        self.login_url = "https://www.example.com/login"
-        self.credentials = {"username": "tester", "password": "secret"}
-        self.retries = 1
-        self._init_login()
+    def __init__(self, url, login_now=False):
+        super().__init__(url, {"username": "tester", "password": "secret"}, immediate_login=login_now)
 
     def _init_login(self):
         self.browser._authenticated = False
@@ -23,6 +19,7 @@ class SiteTest(site.Site):
 
     # we put an _authenticated flag in the mock chromebrowser to simulate non-auth redirects.
     def is_authenticated(self) -> bool:
+        # noinspection PyUnresolvedReferences,PyProtectedMember
         return self.browser._authenticated is True
 
 
@@ -31,26 +28,58 @@ class PageTest(page.Page):
         self.status = "test"
 
     # use the overridden _navigate we defined in SiteTest
+    # noinspection PyMethodOverriding
     @property
     def _navigate(self):
+        # noinspection PyProtectedMember
         return self.site._navigate
 
 
-def test_login(chromedriver):
-    # Antecedent: objects instantiated
-    s = SiteTest(chromedriver)
-    p = PageTest(s)
+def test_login(chromedriver, urls):
+    # Antecedent: set up environment
+    SiteTest._chrome_manager_class = chromedriver
 
-    # Behavior: call the login method
-    s.login()
+    # Behavior: instantiate and call the login method
+    s = SiteTest(urls.login, login_now=True)
+    p = PageTest(s)
 
     # Consequence: site._do_login has been called
     assert p.site.is_authenticated() is True
 
 
-def test_no_login(chromedriver):
+def test_skip_login(urls):
+    # Antecedent: a Site instance
+    # noinspection PyAbstractClass
+    class SkipSite(site.Site):
+        current_url = urls.origin
+
+        # noinspection PyMissingConstructor
+        def __init__(self):
+            self.login_url = self.current_url
+            self.test_authenticated = False
+
+        def _do_login(self):
+            self.test_authenticated = True
+            return False
+
+        def is_authenticated(self):
+            return self.test_authenticated
+
+    instance = SkipSite()
+
+    # Behavior: call site.login() twice
+    first_call = instance.login()
+    second_call = instance.login()
+
+    # Consequence: first call calls _do_login() (returning False), second call early-returns `self`
+    assert first_call is False
+    assert second_call is instance
+
+
+def test_no_login(chromedriver, urls):
     # Antecedent: objects instantiated
-    s = SiteTest(chromedriver)
+    SiteTest._chrome_manager_class = chromedriver
+    s = SiteTest(urls.login)
     p = PageTest(s)
 
     # Behavior: exists
@@ -59,17 +88,21 @@ def test_no_login(chromedriver):
     assert p.site.is_authenticated() is False
 
 
-def test_page_login(chromedriver):
+def test_page_navigate_login(chromedriver, urls):
     # Antecedent: objects instantiated
-    s = SiteTest(chromedriver)
+    SiteTest._chrome_manager_class = chromedriver
+    s = SiteTest(urls.login)
     p = PageTest(s)
 
     # Behavior: navigate to a url
-    p.navigate("https://www.example.com/secret")
+    p.navigate(urls.secret)
 
-    # Consequence: site._do_login and page._init_page have been called
-    assert s.is_authenticated() is True
+    # Consequence: Page instantiated (page._init_page was called); failed to open protected page and redirected
+    #   to login (site._do_login was called); then finally loaded to requested page
     assert p.status == "test"
+    assert s.is_authenticated() is True
+    # noinspection TimingAttack
+    assert p.current_url == urls.secret
 
 
 def test_base_site_methods_not_implemented():
@@ -84,7 +117,7 @@ def test_base_site_methods_not_implemented():
     with pytest.raises(NotImplementedError):
         s.is_authenticated()
 
-    # Consequence: NotImplementedError raised
+    # Consequence: NotImplementedError was raised
 
 
 def test_base_page_methods_not_implemented():
@@ -95,4 +128,4 @@ def test_base_page_methods_not_implemented():
     with pytest.raises(NotImplementedError):
         p._init_page()
 
-    # Consequence: NotImplementedError raised
+    # Consequence: NotImplementedError was raised

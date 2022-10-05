@@ -1,13 +1,20 @@
+# noinspection PyUnresolvedReferences
 def test_module_attributes():
     """Testing that package-level imports are as expected."""
     # Antecedent
-    import webfetch.site, webfetch.page, webfetch.element, webfetch.exceptions
+    import admitted.site
+    import admitted.page
+    import admitted.element
+    import admitted.models
+    import admitted.exceptions
 
     # Behavior
-    from webfetch import Site, Page, Element, WebFetchError
+    from admitted import Site, Page, Element, Request, Response, AdmittedError
 
     # Consequence
-    assert Site is webfetch.site.Site
-    assert Page is webfetch.page.Page
-    assert Element is webfetch.element.Element
-    assert WebFetchError is webfetch.exceptions.WebFetchError
+    assert Site is admitted.site.Site
+    assert Page is admitted.page.Page
+    assert Element is admitted.element.Element
+    assert Request is admitted.models.Request
+    assert Response is admitted.models.Response
+    assert AdmittedError is admitted.exceptions.AdmittedError

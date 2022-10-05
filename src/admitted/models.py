@@ -4,9 +4,13 @@ import json
 from typing import BinaryIO, Any
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 from lxml import html
-from lxml.etree import _Element  # noqa=PyProtectedMember
+
+# noinspection PyProtectedMember
+from lxml.etree import _Element
 import urllib3
-from urllib3._collections import HTTPHeaderDict  # noqa=PyProtectedMember
+
+# noinspection PyProtectedMember
+from urllib3._collections import HTTPHeaderDict
 
 
 class Request:
@@ -72,6 +76,7 @@ class Request:
             query = list(query.items())
         split = urlsplit(self.url)
         if split.query:
+            # noinspection PyTypeChecker
             query.extend(parse_qsl(split.query))
         url_query = urlencode(query)
         self.url = urlunsplit((split.scheme, split.netloc, split.path, url_query, split.fragment))
@@ -80,7 +85,7 @@ class Request:
 class Response:
     """HTTP Response object to give a consistent API whether from window.fetch or outside_request."""
 
-    def __init__(self, url: str, status: int, reason: str, headers: HTTPHeaderDict):
+    def __init__(self, *, url: str, status: int, reason: str, headers: HTTPHeaderDict):
         self.url = url
         self.status_code = status
         self.reason = reason
@@ -116,15 +121,12 @@ class Response:
 
     @property
     def content(self) -> bytes:
-        if self._content is not None:
-            return self._content
-        if self._urllib3_http_response:
-            self._content = self._urllib3_http_response.data or b""
-            return self._content
-        if self._text:
-            self._content = self._text.encode("utf8")
-            return self._content
-        return b""
+        if self._content is None:
+            if self._urllib3_http_response:
+                self._content = self._urllib3_http_response.data or b""
+            else:
+                self._content = b""
+        return self._content
 
     @property
     def text(self) -> str:

@@ -3,12 +3,13 @@ from pathlib import Path
 import subprocess
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome import service, webdriver
-from webfetch import _manager, _outside, models
+
+# noinspection PyProtectedMember
+from admitted import _manager, _outside, models
 
 
-class Mock:
+class MockProcess:
     def __init__(self):
-        self.session_id = "test_driver"
         self.pid = None
         self.stdin = None
         self.stdout = None
@@ -17,10 +18,13 @@ class Mock:
         self.kill = lambda: None
 
     def terminate(self):
-        self.session_id = "terminated"
+        self.pid = "terminated"
 
 
+# noinspection PyUnusedLocal
 def mock_run(command, stdout, check):
+    """mock of subprocess.run, which is globally removed for tests"""
+
     class MockRun:
         returncode = 0
         stdout = b"Chrome(Driver) 42.42.42.42"
@@ -56,9 +60,9 @@ def test_platform_variables():
     )
 
 
-def test_chrome_wait():
-    # Antecedent
-    instance = _manager.ChromeWait(Mock(), 0, 0.001)
+def test_chrome_wait(chromedriver):
+    # Antecedent: an instance of ChromeWait
+    instance = _manager.ChromeWait(chromedriver(), 0, 0.001)
 
     # Behavior
     until_result = instance.until(lambda _: "until")
@@ -74,34 +78,39 @@ def test_chrome_wait():
 
 
 def test_upgrade_chromedriver(monkeypatch, tmp_path):
-    # Antecedent
+    # Antecedent: an instance of ChromeManager
+    # force the call to outside_request to return a mock chromedriver zip file
     zip_content = (
         b"PK\x03\x04\x14\x00\x00\x00\x08\x00\xc7j=Uh\x1f\xac\x8d\x0e\x00\x00\x00\x0c\x00\x00\x00\x11\x00\x00\x00"
         b"chromedriver_testK\xce(\xca\xcfMM)\xca,K-\x02\x00PK\x01\x02\x14\x03\x14\x00\x00\x00\x08\x00\xc7j=Uh\x1f\xac"
         b"\x8d\x0e\x00\x00\x00\x0c\x00\x00\x00\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa4\x81\x00\x00\x00\x00"
         b"chromedriver_testPK\x05\x06\x00\x00\x00\x00\x01\x00\x01\x00?\x00\x00\x00=\x00\x00\x00\x00\x00"
     )
-    response = models.Response("", 200, "OK", None)
+    # noinspection PyTypeChecker
+    response = models.Response(url="", status=200, reason="OK", headers=None)
     response._content = zip_content
+    monkeypatch.setattr(_outside, "outside_request", lambda *a, **kw: response)
+    # set platform variables such that ChromeManager will expect what's in our zip file
     _manager.ChromeManager._platform_vars = _manager.PlatformVariables()
     _manager.ChromeManager._platform_vars.chromedriver_filename = "chromedriver_test"
     _manager.ChromeManager._platform_vars.user_bin_path = tmp_path
-    monkeypatch.setattr(_outside, "outside_request", lambda *a, **kw: response)
+    # force calls to subprocess.run to return our chrome/chromedriver version of 42.42.42.42
     subprocess.run = mock_run
+    # create the instance
     instance = object.__new__(_manager.ChromeManager)
 
-    # Behavior
+    # Behavior: call the _upgrade_chromedriver method
     instance._upgrade_chromedriver("42.42.42.42")
     subprocess.run = None
 
-    # Consequence
+    # Consequence: ChromeManager downloaded and installed chromedriver version 42.42.42.42
     file = tmp_path / "chromedriver_test"
     assert file.is_file()
     assert file.read_bytes() == b"chromedriver"
 
 
-def test_get_chrome_version(monkeypatch):
-    # Antecedent
+def test_get_chrome_version():
+    # Antecedent: an instance of ChromeManager
     subprocess.run = mock_run
     _manager.ChromeManager._platform_vars = _manager.PlatformVariables()
     instance = object.__new__(_manager.ChromeManager)
@@ -115,24 +124,27 @@ def test_get_chrome_version(monkeypatch):
 
 
 def test_instantiate_chrome_manager(monkeypatch):
-    # Antecedent
+    # Antecedent: an environment for instantiating ChromeManager
     monkeypatch.setattr(webdriver.WebDriver, "start_session", lambda *a, **kw: None)
     monkeypatch.setattr(_manager.ChromeManager, "_upgrade_chromedriver", lambda *a: None)
-    response = models.Response("", 200, "OK", None)
+    # noinspection PyTypeChecker
+    response = models.Response(url="", status=200, reason="OK", headers=None)
     response._text = "42.42.42.43"
-    monkeypatch.setattr(_outside, "outside_request", lambda *args: response)
+    monkeypatch.setattr(_outside, "outside_request", lambda *a, **kw: response)
     subprocess.run = mock_run
     service.Service.start = lambda _: None
-    service.Service.process = Mock()
+    service.Service.process = MockProcess()
 
-    # Behavior
+    # Behavior: ChromeManager is instantiated and then shut down
     instance = _manager.ChromeManager(0)
+    instance.service.process.pid = "running"
     subprocess.run = None
+    # pre-acquire assertion values so they're not lost when kill_pids calls quit
     has_chrome_wait_instance = isinstance(instance.wait, _manager.ChromeWait)
     has_service_process = instance.service.process
     # trigger kill_pids
     _manager.kill_pids(instance, [])
 
-    # Consequence
+    # Consequence: no exceptions, instance has attributes created in __init__, and process.terminate was called
     assert has_chrome_wait_instance is True
-    assert has_service_process.session_id == "terminated"
+    assert has_service_process.pid == "terminated"

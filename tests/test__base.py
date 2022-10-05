@@ -1,7 +1,11 @@
 import pytest
-from webfetch import _locator
-from webfetch._base import BasePage
-from webfetch.exceptions import NavigationError
+
+# noinspection PyProtectedMember
+from admitted import _locator
+
+# noinspection PyProtectedMember
+from admitted._base import BasePage
+from admitted.exceptions import NavigationError
 
 
 def test_instantiate_base(chromedriver):
@@ -10,109 +14,119 @@ def test_instantiate_base(chromedriver):
     debug = False
 
     # Behavior: BasePage is instantiated
-    instance = BasePage(chromedriver, retries, debug)
+    instance = BasePage(chromedriver(), retries, debug)
 
     # Consequence: instance has public attributes and methods
-    public_attrs = ("browser", "window", "outside_request", "css", "xpath", "switch_id")
+    public_attrs = ("browser", "window", "outside_request", "css", "xpath", "switch_id", "current_url")
     assert all((hasattr(instance, attr) for attr in public_attrs))
 
 
-def test_css_finder(monkeypatch, chromedriver):
+def test_css_finder(monkeypatch, chromedriver, find_any):
     # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver)
-    monkeypatch.setattr(_locator, "find_any", instance.browser.find_any)
+    instance = BasePage(chromedriver())
+    monkeypatch.setattr(_locator, "find_any", find_any)
     selector = '.test, [method="css"]'
 
     # Behavior: finder method is called
     element = instance.css(selector, False, None)
 
-    # Consequence: returns the result of find_any, in this case our monkeypatch
+    # Consequence: returns the result of find_any, in this case our MockElement exposing the selector
+    # noinspection PyUnresolvedReferences
     assert element.by == "css selector"
+    # noinspection PyUnresolvedReferences
     assert element.target == selector
 
 
-def test_xpath_finder(monkeypatch, chromedriver):
+def test_xpath_finder(monkeypatch, chromedriver, find_any):
     # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver)
-    monkeypatch.setattr(_locator, "find_any", instance.browser.find_any)
+    instance = BasePage(chromedriver())
+    monkeypatch.setattr(_locator, "find_any", find_any)
     xpath = "//[contains(@class,'test') and @method='xpath']"
 
     # Behavior: finder method is called
-    element = instance.xpath(xpath, True, None)
+    element, *_ = instance.xpath(xpath, True, None)
 
-    # Consequence: returns the result of find_any, in this case our monkeypatch
+    # Consequence: returns the result of find_any, in this case our MockElement exposing the selector
     assert element.by == "xpath"
     assert element.target == xpath
 
 
-def test_switch_finder(monkeypatch, chromedriver):
+def test_switch_finder(monkeypatch, chromedriver, find_any):
     # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver)
-    monkeypatch.setattr(_locator, "find_any", instance.browser.find_any)
+    instance = BasePage(chromedriver())
+    monkeypatch.setattr(_locator, "find_any", find_any)
 
     def callback(el):
-        instance.browser.callback_was_called += 1
+        el.callback_counter += 1
         return el
 
     # Behavior: finder method is called
+    # noinspection PyTypeChecker
     element = instance.switch_id({"id_one": callback, "id_two": callback})
 
     # Consequence: method locator is as expected and called one of the callbacks
-    assert instance.browser.callback_was_called == 1
+    # noinspection PyUnresolvedReferences
+    assert element.callback_counter == 1
+    # noinspection PyUnresolvedReferences
     assert element.by == "css selector"
+    # noinspection PyUnresolvedReferences
     assert element.target == '[id="id_one"], [id="id_two"]'
 
 
-def test_current_url(chromedriver):
+def test_current_url(chromedriver, urls):
     # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver)
+    instance = BasePage(chromedriver())
 
     # Behavior: read current_url property
     url = instance.current_url
 
     # Consequence: returns result of call to property method instance.browser.current_url
-    assert url == "https://www.example.com"
+    assert url == urls.origin
 
 
-def test_navigate_chrome_success(chromedriver):
+def test_navigate_chrome_success(chromedriver, urls):
     # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver)
+    instance = BasePage(chromedriver())
 
+    # noinspection PyUnusedLocal
     def callback(retry: int):
-        instance.browser.callback_was_called += 1
+        # noinspection PyUnresolvedReferences
+        instance.browser.callback_counter += 1
         return True
 
     # Behavior: call _navigate method
-    instance._navigate("https://www.example.com/test", callback, retry_wait=0, retries_override=0, enforce_url=True)
+    instance._navigate(urls.test, callback, retry_wait=0, retries_override=0, enforce_url=True)
 
     # Consequence: succeeded without reaching the pre-pause callback
-    assert instance.browser.callback_was_called == 0
+    # noinspection PyUnresolvedReferences
+    assert instance.browser.callback_counter == 0
 
 
-def test_navigate_chrome_fail(chromedriver):
+def test_navigate_chrome_fail(chromedriver, urls):
     # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver)
+    instance = BasePage(chromedriver())
 
+    # noinspection PyUnusedLocal
     def callback(retry: int):
-        instance.browser.callback_was_called += 1
+        # noinspection PyUnresolvedReferences
+        instance.browser.callback_counter += 1
         return False
 
     # Behavior: call _navigate method
     with pytest.raises(NavigationError, match=r"^Failed after \d tries navigating to .*"):
-        instance._navigate(
-            "https://www.example.com/fail", callback, retry_wait=0, retries_override=2, enforce_url=False
-        )
+        instance._navigate(urls.fail, callback, retry_wait=0, retries_override=2, enforce_url=False)
 
     # Consequence: exception was raised after pre-pause callback was called after each attempt
-    assert instance.browser.callback_was_called == 3
+    # noinspection PyUnresolvedReferences
+    assert instance.browser.callback_counter == 3
 
 
-def test_navigate_chrome_mismatch(chromedriver):
+def test_navigate_chrome_mismatch(chromedriver, urls):
     # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver)
+    instance = BasePage(chromedriver())
 
     # Behavior: call _navigate method
     with pytest.raises(NavigationError, match=r"^Failed after \d tries navigating to .*"):
-        instance._navigate("https://www.example.com/change", None, retry_wait=0, retries_override=0, enforce_url=True)
+        instance._navigate(urls.change, None, retry_wait=0, retries_override=0, enforce_url=True)
 
     # Consequence: exception was raised as expected

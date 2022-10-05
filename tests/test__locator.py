@@ -1,59 +1,45 @@
-from webfetch._locator import find_any, match_url
-from webfetch._manager import ChromeManager
+# noinspection PyProtectedMember
+from admitted._locator import find_any, match_url
 
 
-class MockWait:
-    def until(self, func):
-        return
-
-
-def get_test_driver(monkeypatch):
-    monkeypatch.setattr(ChromeManager, "__init__", lambda _: None)
-    monkeypatch.setattr(ChromeManager, "find_element", lambda *args: (1, *args))
-    monkeypatch.setattr(ChromeManager, "find_elements", lambda *args: (2, *args))
-    instance = ChromeManager()
-    instance.wait = MockWait()
-    return instance
-
-
-def test_find_any_single(monkeypatch):
+def test_find_any_single(chromedriver):
     # Antecedent
-    driver = get_test_driver(monkeypatch)
+    driver = chromedriver()
     by = "find"
     target = "target_${index}"
     multiple = False
     mapping = {"index": "one"}
 
     # Behavior
-    n, _, find_by, find_target = find_any(driver, by, target, multiple, mapping)
+    element = find_any(driver=driver, by=by, target=target, multiple=multiple, mapping=mapping)
 
     # Consequence
-    assert n == 1
-    assert find_by == by
-    assert find_target == "target_one"
+    assert element.multiple is multiple
+    assert element.by == by
+    assert element.target == "target_one"
 
 
-def test_find_any_multiple(monkeypatch):
+def test_find_any_multiple(chromedriver):
     # Antecedent
-    driver = get_test_driver(monkeypatch)
+    driver = chromedriver()
     by = "find"
     target = "target_many"
     multiple = True
     mapping = None
 
     # Behavior
-    n, _, find_by, find_target = find_any(driver, by, target, multiple, mapping)
+    element, *_ = find_any(driver=driver, by=by, target=target, multiple=multiple, mapping=mapping)
 
     # Consequence
-    assert n == 2
-    assert find_by == by
-    assert find_target == target
+    assert element.multiple is multiple
+    assert element.by == by
+    assert element.target == target
 
 
-def test_match_url_success():
+def test_match_url_success(urls):
     # Antecedent
-    one_url = "http://example.com/home"
-    two_url = "https://www.sub.example.com/home"
+    one_url = f"{urls.naked}/home"
+    two_url = f"{urls.sub}/home"
 
     # Behavior
     result = match_url(one_url, two_url)
@@ -62,10 +48,10 @@ def test_match_url_success():
     assert result is True
 
 
-def test_match_url_ignoring_query():
+def test_match_url_ignoring_query(urls):
     # Antecedent
-    one_url = "http://example.com/home?ignored=false"
-    two_url = "https://www.sub.example.com/home"
+    one_url = f"{urls.naked}/home?ignored=false"
+    two_url = f"{urls.sub}/home"
 
     # Behavior
     result = match_url(one_url, two_url, ignore_query=True)
@@ -74,11 +60,11 @@ def test_match_url_ignoring_query():
     assert result is True
 
 
-def test_match_url_fail():
+def test_match_url_fail(urls):
     # Antecedent
-    one_url = "http://example.com/home"
-    two_url = "http://example.com/home/dash"
-    three_url = "http://example.net/home"
+    one_url = f"{urls.naked}/home"
+    two_url = f"{urls.naked}/home/dash"
+    three_url = f"{urls.naked.replace('com', 'net')}/home"
 
     # Behavior
     result1 = match_url(one_url, two_url)

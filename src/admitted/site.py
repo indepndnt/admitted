@@ -10,7 +10,17 @@ logger = logging.getLogger(__name__)
 class Site(BasePage):
     """Represents a particular web site and one ChromeDriver instance."""
 
-    def __init__(self, login_url: str, credentials: dict[str, str], timeout: int = 30, debug: bool = False):
+    _chrome_manager_class = ChromeManager
+
+    def __init__(
+        self,
+        login_url: str,
+        credentials: dict[str, str],
+        *,
+        timeout: int = 30,
+        debug: bool = False,
+        immediate_login: bool = True,
+    ):
         """Initialize ChromeDriver and Site instance attributes.
 
         Args:
@@ -18,12 +28,14 @@ class Site(BasePage):
           credentials: Dictionary defining credential values required by _do_login.
           timeout: Default timeout in seconds for wait operations.
           debug: If True, will output chromedriver.log on the desktop and suppress retries.
+          immediate_login: If True, will call the login method on instantiation.
         """
-        super().__init__(ChromeManager(timeout=timeout, debug=debug))
+        super().__init__(self._chrome_manager_class(timeout=timeout, debug=debug))
         self.login_url = login_url
         self.credentials = credentials
         self._init_login()
-        self._navigate(url=login_url)
+        if immediate_login:
+            self.login()
 
     def _init_login(self):
         """Define the login page object.

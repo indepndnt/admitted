@@ -1,6 +1,10 @@
 import pytest
 from selenium.common.exceptions import WebDriverException
-from webfetch._manager import ChromeManager
+
+# noinspection PyProtectedMember
+from admitted._manager import ChromeManager
+
+URL = "https://www.example.com"
 
 
 @pytest.fixture(autouse=True)
@@ -22,14 +26,60 @@ def no_subprocess(monkeypatch):
 
 
 @pytest.fixture()
+def urls():
+    class URLs:
+        origin = URL
+        naked = URL.replace("s://www.", "://")
+        sub = URL.replace("www.", "www.sub.")
+        login = f"{URL}/login"
+        # noinspection HardcodedPassword
+        secret = f"{URL}/secret"
+        test = f"{URL}/test"
+        fail = f"{URL}/fail"
+        change = f"{URL}/change"
+
+    return URLs()
+
+
+class MockElement:
+    def __init__(self, _driver, _by, _target, _multiple, _mapping):
+        self.id = "id_one"
+        self.driver = _driver
+        self.by = _by
+        self.target = _target
+        self.multiple = _multiple
+        self.mapping = _mapping
+        self.callback_counter = 0
+
+    def get_property(self, item):
+        if item != "id":
+            raise TypeError("I think you wrote this test wrong.")
+        return self.id
+
+
+@pytest.fixture()
+def find_any():
+    """Find a mocked WebElement that exposes the details of the find_any call and a callback counter."""
+
+    def func(driver, by, target, multiple, mapping):
+        if multiple:
+            return [MockElement(driver, by, target, multiple, mapping)]
+        return MockElement(driver, by, target, multiple, mapping)
+
+    return func
+
+
+@pytest.fixture()
 def chromedriver():
     class Mock(ChromeManager):
-        def __init__(self):
-            self._current_url = "https://www.example.com"
-            self.session_id = "test"
-            self.callback_was_called = 0
+        # noinspection PyUnusedLocal,PyMissingConstructor
+        def __init__(self, timeout=0, debug=False):
+            self._current_url = URL
+            self.session_id = "test_driver"
+            self.callback_counter = 0
             self._authenticated = None
 
+        # noinspection PyPep8Naming
         class wait:
             @staticmethod
             def until(method):
@@ -55,21 +105,10 @@ def chromedriver():
             else:
                 self._current_url = url
 
-        def find_any(self, driver, by, target, multiple, mapping):
-            return self.MockElement(driver, by, target, multiple, mapping)
+        def find_element(self, by=None, value=None):
+            return MockElement(self, by, value, False, None)
 
-        class MockElement:
-            def __init__(self, driver, by, target, multiple, mapping):
-                self.id = "id_one"
-                self.driver = driver
-                self.by = by
-                self.target = target
-                self.multiple = multiple
-                self.mapping = mapping
+        def find_elements(self, by=None, value=None):
+            return [MockElement(self, by, value, True, None)]
 
-            def get_property(self, item):
-                if item != "id":
-                    raise TypeError("I think you wrote this test wrong.")
-                return self.id
-
-    return Mock()
+    return Mock

@@ -1,10 +1,10 @@
-from webfetch import _window
-
-URL = "https://www.example.com"
+# noinspection PyProtectedMember
+from admitted import _window
 
 
 def get_instance_with_mock_run(return_value):
     class Driver:
+        # noinspection PyMethodMayBeStatic
         def execute_script(self, script, *args, **kwargs):
             if isinstance(return_value, dict):
                 return dict(script=script, args=args, kwargs=kwargs, **return_value)
@@ -47,10 +47,10 @@ def test_scroll_to_top():
     assert True
 
 
-def test_fetch_get_dict():
+def test_fetch_get_dict(urls):
     # Antecedent
     fetch_value = {
-        "url": URL,
+        "url": urls.origin,
         "status": 200,
         "reason": "OK",
         "headers": [],
@@ -61,18 +61,18 @@ def test_fetch_get_dict():
     instance = get_instance_with_mock_run(fetch_value)
 
     # Behavior
-    response = instance.fetch("get", URL, {"q": "test"}, None)
+    response = instance.fetch("get", urls.origin, {"q": "test"}, None)
 
     # Consequence
     assert response.json == {"data": ""}
     assert response.reason == "OK"
-    assert f"{URL}?q=test" in response._fetch_raw_response["script"]
+    assert f"{urls.origin}?q=test" in response._fetch_raw_response["script"]
 
 
-def test_fetch_get_list():
+def test_fetch_get_list(urls):
     # Antecedent
     fetch_value = {
-        "url": URL,
+        "url": urls.origin,
         "status": 200,
         "reason": "OK",
         "headers": [],
@@ -83,22 +83,22 @@ def test_fetch_get_list():
     instance = get_instance_with_mock_run(fetch_value)
 
     # Behavior
-    response = instance.fetch("get", URL, [("q", "test")], None)
+    response = instance.fetch("get", urls.origin, [("q", "test")], None)
 
     # Consequence
     assert response.json == ["data", ""]
     assert response.reason == "OK"
-    assert f"{URL}?q=test" in response._fetch_raw_response["script"]
+    assert f"{urls.origin}?q=test" in response._fetch_raw_response["script"]
 
 
-def test_fetch_get_html():
+def test_fetch_get_html(urls):
     # Antecedent
     html = """<!DOCTYPE html>
 <html><head></head><body>
 <h1>Test Page</h1><p>Success!</p>
 </body></html>"""
     fetch_value = {
-        "url": URL,
+        "url": urls.origin,
         "status": 200,
         "reason": "OK",
         "headers": [],
@@ -109,17 +109,17 @@ def test_fetch_get_html():
     instance = get_instance_with_mock_run(fetch_value)
 
     # Behavior
-    response = instance.fetch("get", "https://www.example.com", None, None)
+    response = instance.fetch("get", urls.origin, None, None)
 
     # Consequence
     assert response.html.xpath("/html/body/h1")[0].text == "Test Page"
     assert response.html.xpath("/html/body/p")[0].text == "Success!"
 
 
-def test_fetch_post():
+def test_fetch_post(urls):
     # Antecedent
     fetch_value = {
-        "url": URL,
+        "url": urls.origin,
         "status": 200,
         "reason": "OK",
         "headers": [],

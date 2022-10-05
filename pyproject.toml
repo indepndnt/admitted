@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "webfetch"
+name = "admitted"
 description = "Utility to make automating processes using Selenium and Chromedriver easier"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -18,7 +18,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-urls = { "repository" = "https://github.com/Accounting-Data-Solutions/webfetch" }
+urls = { "repository" = "https://github.com/Accounting-Data-Solutions/admitted" }
 dynamic = ["version"]
 dependencies = [
     "cssselect",
@@ -41,7 +41,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["webfetch"]
+packages = ["admitted"]
 package-dir = { "" = "src" }
 
 [tool.setuptools.dynamic]
@@ -52,7 +52,7 @@ line-length = 120
 target-version = ["py310", "py311"]
 
 [tool.coverage.run]
-source = ["webfetch"]
+source = ["admitted"]
 
 [tool.coverage.report]
 skip_empty = true
