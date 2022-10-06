@@ -3,8 +3,7 @@ name: Publish to PyPI
 on:
   push:
     branches: [main]
-#  release:
-#    types: [published]
+    tags: [20**]
 
 permissions:
   contents: read
@@ -34,24 +33,6 @@ jobs:
         with:
           path: dist/
 
-#  cibuildwheel:
-#    name: Build wheels on ${{ matrix.os }}
-#    runs-on: ${{ matrix.os }}
-#    strategy:
-#      matrix:
-#        os: [ubuntu-20.04, windows-2019, macos-11]
-#
-#    steps:
-#      - uses: actions/checkout@v3
-#
-#      - name: Build wheels
-#        uses: pypa/cibuildwheel@v2.10.2
-#
-#      - name: Upload wheels as workflow artifacts
-#        uses: actions/upload-artifact@v3
-#        with:
-#          path: ./wheelhouse/*.whl
-
   upload_all:
     name: Upload to PyPI
     needs: [main]  # cibuildwheel
@@ -65,10 +46,6 @@ jobs:
           path: dist
 
       - name: Upload to PyPI via Twine
-#        if: github.event_name == "push" && startsWith(github.ref, "refs/tags")
         uses: pypa/gh-action-pypi-publish@v1.5.1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
-# for live publishing: remove the following two lines, uncomment the `if` above, and update PYPI_TOKEN
-          repository_url: https://test.pypi.org/legacy/
-          verbose: true

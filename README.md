@@ -33,11 +33,11 @@ the current page to the console (if `html2text` is
 installed, otherwise the raw page source).
 
 # Installation
-#### Requirement format for this GitHub repo as a dependency
-`admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
-
 #### pip
 `pip install admitted`
+
+#### Requirement format for this GitHub repo as a dependency
+`admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
 
 # Usage
 Generally, the `admitted` API is intended to follow the
@@ -151,3 +151,7 @@ done
 pylint --rcfile ${root}/pyproject.toml ${root}/src/admitted
 pytest -x -rN --no-cov --no-header
 ```
+
+#### Release
+A release is published to PyPI by a GitHub Action when there
+is a push to `main` with a tag. See `.github/workflows/publish.yml`.

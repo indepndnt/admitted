@@ -7,7 +7,7 @@ name = "admitted"
 description = "Utility to make automating processes using Selenium and Chromedriver easier"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT License (MIT)"}
+license = {text = "MIT"}
 authors = [ {name = "Joe Carey", email = "joe@accountingdatasolutions.com"} ]
 classifiers = [
     "Development Status :: 3 - Alpha",
