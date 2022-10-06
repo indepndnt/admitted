@@ -32,6 +32,7 @@ class Request:
         url: str,
         payload: Any = None,
         headers: dict[str, str] | None = None,
+        *,
         stream: bool = False,
         json_args: dict[str, Any] | None = None,
         **kwargs,
@@ -122,10 +123,7 @@ class Response:
     @property
     def content(self) -> bytes:
         if self._content is None:
-            if self._urllib3_http_response:
-                self._content = self._urllib3_http_response.data or b""
-            else:
-                self._content = b""
+            self._content = getattr(self._urllib3_http_response, "data", None) or b""
         return self._content
 
     @property

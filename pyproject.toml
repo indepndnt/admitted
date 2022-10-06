@@ -7,8 +7,8 @@ name = "admitted"
 description = "Utility to make automating processes using Selenium and Chromedriver easier"
 readme = "README.md"
 requires-python = ">=3.8"
-license = { file = "LICENSE" }
-authors = [ { name = "Joe Carey", email = "joe@accountingdatasolutions.com" } ]
+license = {text = "MIT License (MIT)"}
+authors = [ {name = "Joe Carey", email = "joe@accountingdatasolutions.com"} ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3.8",
@@ -18,18 +18,16 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-urls = { "repository" = "https://github.com/Accounting-Data-Solutions/admitted" }
+urls = {Homepage = "https://github.com/Accounting-Data-Solutions/admitted"}
 dynamic = ["version"]
 dependencies = [
     "cssselect",
     "lxml",
     "psutil",
     "selenium",
-    "urllib3[secure]",
+    "urllib3",
 ]
-
-[project.optional-dependencies]
-dev = [
+optional-dependencies.dev = [
     "black",
     "coverage[toml]",
     "html2text",
@@ -42,37 +40,38 @@ dev = [
 
 [tool.setuptools]
 packages = ["admitted"]
-package-dir = { "" = "src" }
+package-dir = {"" = "src"}
+dynamic.version = {file = "VERSION"}
 
-[tool.setuptools.dynamic]
-version = { file = "VERSION" }
+[tool.cibuildwheel]
+build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*"]
+build-frontend = "build"
+test-command = "pytest {project}/tests --color yes"
+test-requires = "pytest"
 
 [tool.black]
 line-length = 120
 target-version = ["py310", "py311"]
 
-[tool.coverage.run]
-source = ["admitted"]
-
-[tool.coverage.report]
-skip_empty = true
+[tool.coverage]
+run.source = ["admitted"]
+report.skip_empty = true
 
 [tool.pytest.ini_options]
-addopts = "--cov -ra -l --color=yes --code-highlight=yes"
+addopts = "--cov --cov-report=xml -l -rN --color=yes --code-highlight=yes"
 testpaths = ["tests"]
 python_files = "*.py"
-log_auto_indent = "True"
-log_cli = "True"
-norecursedirs = ["__pycache__", "*.egg-info", ".*"]
+log_auto_indent = true
+log_cli = true
+norecursedirs = ["__pycache__", "*.egg-info", ".*", "dist"]
 
-[tool.pylint.'MAIN']
+[tool.pylint]
+main.jobs = 2
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code
-extension-pkg-allow-list = ["lxml"]
-
-[tool.pylint.'MESSAGES CONTROL']
-disable = [
+main.extension-pkg-allow-list = ["lxml"]
+messages_control.disable = [
     "bad-inline-option",
     "deprecated-pragma",
     "duplicate-code",
@@ -92,17 +91,15 @@ disable = [
     "use-dict-literal",
     "use-list-literal",
 ]
-enable = ["c-extension-no-member"]
-
-[tool.pylint.'REPORTS']
+messages_control.enable = [
+    "c-extension-no-member",
+    "useless-suppression",
+]
 # Available formats are text, parseable, colorized, json, and msvs (visual studio).
-output-format = "colorized"
+reports.output-format = "colorized"
 # Activate the evaluation score.
-score = false
-
-[tool.pylint.'FORMAT']
+reports.score = false
 # Expected format of line ending, e.g. empty (any line ending), LF or CRLF.
-expected-line-ending-format = "LF"
-
+format.expected-line-ending-format = "LF"
 # Maximum number of characters on a single line.
-max-line-length = 120
+format.max-line-length = 120

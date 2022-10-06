@@ -1,11 +1,15 @@
+from selenium.common.exceptions import JavascriptException
+
 # noinspection PyProtectedMember
 from admitted import _window
 
 
-def get_instance_with_mock_run(return_value):
+def get_instance_with_mock_run(return_value, throw=False):
     class Driver:
         # noinspection PyMethodMayBeStatic
         def execute_script(self, script, *args, **kwargs):
+            if throw:
+                raise JavascriptException
             if isinstance(return_value, dict):
                 return dict(script=script, args=args, kwargs=kwargs, **return_value)
             return return_value
@@ -23,6 +27,17 @@ def test_get_item():
 
     # Consequence
     assert value == "test_result"
+
+
+def test_get_item_error():
+    # Antecedent
+    instance = get_instance_with_mock_run("test_result", True)
+
+    # Behavior
+    value = instance["invalid_value"]
+
+    # Consequence: error was caught and returned 'None'
+    assert value is None
 
 
 def test_new_keys():

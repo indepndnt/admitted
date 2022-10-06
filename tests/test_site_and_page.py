@@ -3,18 +3,22 @@ from admitted import site, page
 
 
 class SiteTest(site.Site):
-    def __init__(self, url, login_now=False):
-        super().__init__(url, {"username": "tester", "password": "secret"}, immediate_login=login_now)
+    def __init__(self, url, test_name, **kw):
+        self._test_name = test_name
+        self._do_login_called = 0
+        super().__init__(url, {"username": "tester", "password": "secret"}, **kw)
 
     def _init_login(self):
         self.browser._authenticated = False
 
     def _do_login(self) -> "SiteTest":
         self.browser._authenticated = True
+        self._do_login_called += 1
         return self
 
     # we override _navigate only to ensure retry_wait is zero so tests don't take forever
     def _navigate(self, url, callback=None, *, retry_wait=2, **kwargs):
+        url = url.replace("change", "login")
         super()._navigate(url, callback, retry_wait=0, **kwargs)
 
     # we put an _authenticated flag in the mock chromebrowser to simulate non-auth redirects.
@@ -40,7 +44,7 @@ def test_login(chromedriver, urls):
     SiteTest._chrome_manager_class = chromedriver
 
     # Behavior: instantiate and call the login method
-    s = SiteTest(urls.login, login_now=True)
+    s = SiteTest(urls.login, "test_login")
     p = PageTest(s)
 
     # Consequence: site._do_login has been called
@@ -56,6 +60,7 @@ def test_skip_login(urls):
         # noinspection PyMissingConstructor
         def __init__(self):
             self.login_url = self.current_url
+            self._login_opts = {}
             self.test_authenticated = False
 
         def _do_login(self):
@@ -79,7 +84,7 @@ def test_skip_login(urls):
 def test_no_login(chromedriver, urls):
     # Antecedent: objects instantiated
     SiteTest._chrome_manager_class = chromedriver
-    s = SiteTest(urls.login)
+    s = SiteTest(urls.login, "test_no_login", postpone=True)
     p = PageTest(s)
 
     # Behavior: exists
@@ -91,7 +96,7 @@ def test_no_login(chromedriver, urls):
 def test_page_navigate_login(chromedriver, urls):
     # Antecedent: objects instantiated
     SiteTest._chrome_manager_class = chromedriver
-    s = SiteTest(urls.login)
+    s = SiteTest(urls.login, "test_page_navigate_login", start_url=urls.change, postpone=True)
     p = PageTest(s)
 
     # Behavior: navigate to a url
@@ -101,6 +106,7 @@ def test_page_navigate_login(chromedriver, urls):
     #   to login (site._do_login was called); then finally loaded to requested page
     assert p.status == "test"
     assert s.is_authenticated() is True
+    assert s._do_login_called == 1
     # noinspection TimingAttack
     assert p.current_url == urls.secret
 

@@ -77,7 +77,10 @@ def chromedriver():
             self._current_url = URL
             self.session_id = "test_driver"
             self.callback_counter = 0
+            self.script_counter = 0
+            self.last_execute_command = None
             self._authenticated = None
+            self._is_remote = False
 
         # noinspection PyPep8Naming
         class wait:
@@ -85,11 +88,17 @@ def chromedriver():
             def until(method):
                 return method
 
+        # noinspection PyUnusedLocal
         def _execute(self, command, params):
+            self.script_counter += 1
+            self.last_execute_command = command
             return
 
-        def execute_script(self, **kwargs):
-            return kwargs
+        execute = _execute
+
+        def execute_script(self, *a, **kw):
+            self.script_counter += 1
+            return
 
         @property
         def current_url(self):

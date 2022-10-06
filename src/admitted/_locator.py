@@ -39,14 +39,27 @@ def expand_locator(target: str, mapping: dict[str, str]) -> str:
     return target
 
 
-def match_url(url1: str, url2: str, ignore_query: bool = False) -> bool:
-    """Report whether the domain, path, and query of both URLs match."""
+def match_url(url1: str, url2: str, ignore_query: bool = False, path_substr: bool = False) -> bool:
+    """Report whether the domain, path, and query of both URLs match.
+
+    Examples:
+      These evaluate to True:
+        match_url("https://www.example.com/home?q=1", "https://example.com/home?q=1")
+        match_url("https://www.example.com/home", "https://example.com/home?q=1", ignore_query=True)
+        match_url("https://example.com/app/home/page", "https://example.com/home", path_substr=True)
+
+      These evaluate to False:
+        match_url("https://www.example.com/home", "https://example.com/home?q=1")
+        match_url("https://www.example.com", "https://example.com/home?q=1", ignore_query=True)
+        match_url("https://example.com/app/page", "https://example.com/home", path_substr=True)
+    """
     url_a = urlparse(url1)
     url_b = urlparse(url2)
-    if url_a.path != url_b.path:
+    path_a, path_b = url_a.path, url_b.path
+    if (path_substr is False and path_a != path_b) or (path_substr is True and path_b not in path_a):
         return False
-    host_a = url_a.netloc.split(".")
-    host_b = url_b.netloc.split(".")
+    host_a = url_a.hostname.split(".")
+    host_b = url_b.hostname.split(".")
     if host_a[-2:] != host_b[-2:]:
         return False
     return ignore_query or url_a.query == url_b.query
