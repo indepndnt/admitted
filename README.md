@@ -37,7 +37,7 @@ installed, otherwise the raw page source).
 `admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
 
 #### pip
-This is not yet published on PyPI because I'm not sure I like the name.
+`pip install admitted`
 
 # Usage
 Generally, the `admitted` API is intended to follow the
@@ -148,6 +148,6 @@ black ${root} | while read line ; do
     git add ${file}
   fi
 done
-pylint -j2 -sn ${root}/src/admitted
-pytest -x
+pylint --rcfile ${root}/pyproject.toml ${root}/src/admitted
+pytest -x -rN --no-cov --no-header
 ```

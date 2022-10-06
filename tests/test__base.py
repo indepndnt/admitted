@@ -102,6 +102,34 @@ def test_navigate_chrome_success(chromedriver, urls):
     assert instance.browser.callback_counter == 0
 
 
+def test_navigate_chrome_mismatch_success(chromedriver, urls):
+    # Antecedent: BasePage is instantiated
+    instance = BasePage(chromedriver())
+
+    # Behavior: call _navigate method
+    instance._navigate(urls.change, None, retry_wait=0, retries_override=0, enforce_url=False)
+
+    # Consequence: url mismatch but succeeded because enforce_url is False
+
+
+def test_navigate_chrome_callback_success(chromedriver, urls):
+    # Antecedent: BasePage is instantiated
+    instance = BasePage(chromedriver())
+
+    # noinspection PyUnusedLocal
+    def callback(retry: int):
+        # noinspection PyUnresolvedReferences
+        instance.browser.callback_counter += 1
+        return True
+
+    # Behavior: call _navigate method
+    instance._navigate(urls.change, callback, retry_wait=0, retries_override=1, enforce_url=True)
+
+    # Consequence: failed due to url mismatch then received success from the pre-pause callback
+    # noinspection PyUnresolvedReferences
+    assert instance.browser.callback_counter == 1
+
+
 def test_navigate_chrome_fail(chromedriver, urls):
     # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver())
