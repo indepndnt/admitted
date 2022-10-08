@@ -61,7 +61,7 @@ class MockElement:
 def find_any():
     """Find a mocked WebElement that exposes the details of the find_any call and a callback counter."""
 
-    def func(driver, by, target, multiple, mapping):
+    def func(driver, by, target, multiple, wait, mapping):
         if multiple:
             return [MockElement(driver, by, target, multiple, mapping)]
         return MockElement(driver, by, target, multiple, mapping)

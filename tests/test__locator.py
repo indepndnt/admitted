@@ -11,7 +11,7 @@ def test_find_any_single(chromedriver):
     mapping = {"index": "one"}
 
     # Behavior
-    element = find_any(driver=driver, by=by, target=target, multiple=multiple, mapping=mapping)
+    element = find_any(driver=driver, by=by, target=target, multiple=multiple, wait=True, mapping=mapping)
 
     # Consequence
     assert element.multiple is multiple
@@ -28,7 +28,7 @@ def test_find_any_multiple(chromedriver):
     mapping = None
 
     # Behavior
-    element, *_ = find_any(driver=driver, by=by, target=target, multiple=multiple, mapping=mapping)
+    element, *_ = find_any(driver=driver, by=by, target=target, multiple=multiple, wait=True, mapping=mapping)
 
     # Consequence
     assert element.multiple is multiple

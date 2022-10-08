@@ -7,7 +7,9 @@ from selenium.webdriver.support import expected_conditions as ec
 template_pattern = re.compile(r"\$\{\w+\}")
 
 
-def find_any(driver, by: str, target: str, multiple: bool, mapping: dict[str, str] | None):
+def find_any(  # pylint: disable=too-many-arguments
+    driver, by: str, target: str, multiple: bool, wait: bool, mapping: dict[str, str] | None
+):
     """Find element(s) globally or locally according to provided attributes.
 
     Args:
@@ -15,6 +17,7 @@ def find_any(driver, by: str, target: str, multiple: bool, mapping: dict[str, st
       by: Instance of selenium.webdriver.common.by.By (or e.g. "css selector"/"xpath").
       target: The selector/path/etc as indicated by `by`.
       multiple: True to return a list of matching results, otherwise an error will be raised if no element found.
+      wait: True to wait for element presence.
       mapping: A dictionary of template values to replace in `target` if templating is to be used.
 
     Example:
@@ -25,7 +28,8 @@ def find_any(driver, by: str, target: str, multiple: bool, mapping: dict[str, st
         locator = (by, expand_locator(target, mapping))
     else:
         locator = (by, target)
-    driver.wait.until(ec.presence_of_element_located(locator))
+    if wait:
+        driver.wait.until(ec.presence_of_element_located(locator))
     if multiple:
         return driver.find_elements(*locator)
     return driver.find_element(*locator)

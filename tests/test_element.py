@@ -9,7 +9,7 @@ def test_css_finder(monkeypatch, chromedriver, find_any):
     selector = '.test, [method="css"]'
 
     # Behavior
-    el = instance.css(selector, False, None)
+    el = instance.css(selector, True, False, None)
 
     # Consequence: returns the result of find_any, in this case our monkeypatch
     # noinspection PyUnresolvedReferences
@@ -25,7 +25,7 @@ def test_xpath_finder(monkeypatch, chromedriver, find_any):
     xpath = "//[contains(@class,'test') and @method='xpath']"
 
     # Behavior
-    el, *_ = instance.xpath(xpath, True, None)
+    el, *_ = instance.xpath(xpath, True, True, None)
 
     # Consequence: returns the result of find_any, in this case our monkeypatch
     assert el.by == "xpath"

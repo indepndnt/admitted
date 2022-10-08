@@ -48,7 +48,7 @@ class ChromeManager(webdriver.WebDriver):
 
         Args:
           timeout: Default timeout in seconds for wait operations.
-          debug: If True, will output chromedriver.log on the desktop and suppress retries.
+          debug: If True, will output chromedriver.log on the desktop, suppress retries, and run NOT headless.
         """
         version = self._chromedriver_upgrade_needed()
         if version:
@@ -80,7 +80,7 @@ class ChromeManager(webdriver.WebDriver):
 
     def _driver_options(self, debug: bool) -> options.Options:
         chrome_options = options.Options()
-        chrome_options.headless = True
+        chrome_options.headless = not debug
         # using user's default user-data-dir means fewer 2FA requests
         chrome_options.add_argument(f"user-data-dir={self._var.user_data_path}")
         chrome_options.add_argument("--disable-gpu")

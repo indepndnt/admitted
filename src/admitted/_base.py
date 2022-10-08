@@ -33,6 +33,7 @@ class BasePage:
     def css(
         self,
         selector: str,
+        wait: bool = True,
         multiple: bool = False,
         mapping: dict[str, str] | None = None,
     ) -> Element | list[Element]:
@@ -40,6 +41,7 @@ class BasePage:
 
         Args:
           selector: The css selector identifying the element.
+          wait: If true, wait for element to be present.
           multiple: If true, return a list of all matching elements.
           mapping: If set, will be used to expand template values in selector.
 
@@ -49,11 +51,12 @@ class BasePage:
         Raises:
           TimeoutException: No element matching the specified selector was found.
         """
-        return _locator.find_any(self.browser, By.CSS_SELECTOR, selector, multiple, mapping)
+        return _locator.find_any(self.browser, By.CSS_SELECTOR, selector, multiple, wait, mapping)
 
     def xpath(
         self,
         path: str,
+        wait: bool = True,
         multiple: bool = False,
         mapping: dict[str, str] | None = None,
     ) -> Element | list[Element]:
@@ -61,6 +64,7 @@ class BasePage:
 
         Args:
           path: The XPath identifying the element.
+          wait: If true, wait for element to be present.
           multiple: If true, return a list of all matching elements.
           mapping: If set, will be used to expand template values in path.
 
@@ -70,7 +74,7 @@ class BasePage:
         Raises:
           TimeoutException: No element matching the specified XPath was found.
         """
-        return _locator.find_any(self.browser, By.XPATH, path, multiple, mapping)
+        return _locator.find_any(self.browser, By.XPATH, path, multiple, wait, mapping)
 
     def switch_id(self, options: dict[str, Callable[[Element], Element]]) -> Element:
         """Wait for any of several elements to become available and return the first one found.
@@ -87,7 +91,7 @@ class BasePage:
         """
         ids = options.keys()
         selector = ", ".join([f'[id="{id_}"]' for id_ in ids])
-        element = _locator.find_any(self.browser, By.CSS_SELECTOR, selector, False, None)
+        element = _locator.find_any(self.browser, By.CSS_SELECTOR, selector, False, True, None)
         found = element.get_property("id")
         return options[found](element)
 

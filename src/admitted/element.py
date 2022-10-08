@@ -25,6 +25,7 @@ class Element(WebElement):
     def css(
         self,
         selector: str,
+        wait: bool = True,
         multiple: bool = False,
         mapping: dict[str, str] | None = None,
     ) -> "Element" | list["Element"]:
@@ -32,6 +33,7 @@ class Element(WebElement):
 
         Args:
           selector: The css selector identifying the element.
+          wait: If true, wait for element to be present.
           multiple: If true, return a list of all matching elements.
           mapping: If set, will be used to expand template values in selector.
 
@@ -41,11 +43,12 @@ class Element(WebElement):
         Raises:
           TimeoutException: No element matching the specified selector was found.
         """
-        return _locator.find_any(self.parent, By.CSS_SELECTOR, selector, multiple, mapping)
+        return _locator.find_any(self.parent, By.CSS_SELECTOR, selector, multiple, wait, mapping)
 
     def xpath(
         self,
         path: str,
+        wait: bool = True,
         multiple: bool = False,
         mapping: dict[str, str] | None = None,
     ) -> "Element" | list["Element"]:
@@ -53,6 +56,7 @@ class Element(WebElement):
 
         Args:
           path: The XPath identifying the element.
+          wait: If true, wait for element to be present.
           multiple: If true, return a list of all matching elements.
           mapping: If set, will be used to expand template values in path.
 
@@ -62,7 +66,7 @@ class Element(WebElement):
         Raises:
           TimeoutException: No element matching the specified XPath was found.
         """
-        return _locator.find_any(self.parent, By.XPATH, path, multiple, mapping)
+        return _locator.find_any(self.parent, By.XPATH, path, multiple, wait, mapping)
 
     def scroll_to(self) -> None:
         self.parent.execute_script("arguments[0].scrollIntoView();", self)
