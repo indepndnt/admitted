@@ -2,23 +2,25 @@ import pytest
 from pathlib import Path
 import subprocess
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome import service, webdriver
+from selenium.webdriver.chrome import webdriver
 
 # noinspection PyProtectedMember
-from admitted import _manager, _outside, models
+from admitted import _manager, _outside, _service, models
 
 
 class MockProcess:
     def __init__(self):
-        self.pid = None
-        self.stdin = None
-        self.stdout = None
-        self.stderr = None
+        self.pid = -1
         self.wait = lambda: None
         self.kill = lambda: None
+        self.name = lambda: "chromedriver"
+        self.children = lambda **kw: []
 
     def terminate(self):
         self.pid = "terminated"
+
+    def is_running(self):
+        return self.pid != "terminated"
 
 
 # noinspection PyUnusedLocal
@@ -132,8 +134,11 @@ def test_instantiate_chrome_manager(monkeypatch):
     response._text = "42.42.42.43"
     monkeypatch.setattr(_outside, "outside_request", lambda *a, **kw: response)
     subprocess.run = mock_run
-    service.Service.start = lambda _: None
-    service.Service.process = MockProcess()
+
+    def mock_start(self):
+        self.process = MockProcess()
+
+    monkeypatch.setattr(_service.Service, "start", mock_start)
 
     # Behavior: ChromeManager is instantiated and then shut down
     instance = _manager.ChromeManager(0)

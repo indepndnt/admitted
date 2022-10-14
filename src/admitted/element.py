@@ -8,7 +8,9 @@ from . import _locator
 class Element(WebElement):
     """Version of WebElement that returns self from click, clear, and send_keys."""
 
-    def click(self) -> "Element":
+    # todo: handle `selenium.common.exceptions.ElementNotInteractableException: Message: element not interactable`,
+    #   wait up to `wait` seconds? (apply to `clear`, `click`, and `send_keys`)
+    def click(self, wait: int = 0) -> "Element":
         super().click()
         return self
 
@@ -22,6 +24,7 @@ class Element(WebElement):
         super().send_keys(*value)
         return self
 
+    # todo: change `wait` to int, move wait here from `_manager` (apply to `css` and `xpath` here and on `BasePage`)
     def css(
         self,
         selector: str,
@@ -67,6 +70,8 @@ class Element(WebElement):
           TimeoutException: No element matching the specified XPath was found.
         """
         return _locator.find_any(self.parent, By.XPATH, path, multiple, wait, mapping)
+
+    # todo: add `switch_css` and `switch_xpath` here and on `BasePage`
 
     def scroll_to(self) -> None:
         self.parent.execute_script("arguments[0].scrollIntoView();", self)

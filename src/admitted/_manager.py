@@ -11,10 +11,10 @@ import time
 from zipfile import ZipFile
 
 import psutil
-from selenium.webdriver.chrome import options, service, webdriver
+from selenium.webdriver.chrome import options, webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 
-from . import _outside
+from . import _outside, _service
 from .element import Element
 from .exceptions import ChromeDriverVersionError
 
@@ -60,11 +60,12 @@ class ChromeManager(webdriver.WebDriver):
             logging.getLogger("selenium.webdriver.remote.remote_connection").setLevel(logging.WARNING)
             logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
             logging.getLogger("filelock").setLevel(logging.WARNING)
+        # TODO: move wait to elements
         self.wait = ChromeWait(self, timeout=timeout)
 
         # get PIDs of the Chromedriver and Chrome processes as they
         # tend to not properly exit when the script has completed
-        chromedriver_process = psutil.Process(self.service.process.pid)
+        chromedriver_process = self.service.process
         pids = [p.pid for p in chromedriver_process.children(recursive=True)]
         if chromedriver_process.name() == self._var.chromedriver_filename:
             pids.append(chromedriver_process.pid)
@@ -101,11 +102,10 @@ class ChromeManager(webdriver.WebDriver):
             chrome_options.add_argument("--log-level=3")
         return chrome_options
 
-    def _driver_service(self, debug: bool) -> service.Service:
-        return service.Service(
-            executable_path=str(self._var.user_bin_path / self._var.chromedriver_filename),
-            service_args=["--verbose" if debug else "--silent"],
-            log_path=str(HOME / "Desktop" / "chromedriver.log") if debug else None,
+    def _driver_service(self, debug: bool) -> _service.Service:
+        return _service.Service(
+            executable_path=self._var.user_bin_path / self._var.chromedriver_filename,
+            log_path=(HOME / "Desktop" / "chromedriver.log") if debug else None,
         )
 
     def _chromedriver_upgrade_needed(self) -> str:
@@ -191,10 +191,14 @@ class ChromeManager(webdriver.WebDriver):
 
 
 class ChromeWait(WebDriverWait):
+    # todo: move to `element`
+
     def until(self, method, message: str | None = None) -> bool:
+        # todo: better message, `method` is not useful
         return super().until(method, message or f"Time expired waiting for {method}")
 
     def until_not(self, method, message: str | None = None) -> bool:
+        # todo: better message, `method` is not useful
         return super().until_not(method, message or f"Time expired waiting for not {method}")
 
 
