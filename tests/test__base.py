@@ -17,44 +17,41 @@ def test_instantiate_base(chromedriver):
     instance = BasePage(chromedriver(), retries, debug)
 
     # Consequence: instance has public attributes and methods
-    public_attrs = ("browser", "window", "outside_request", "css", "xpath", "switch_id", "current_url")
+    public_attrs = ("browser", "window", "direct_request", "css", "xpath", "switch_id", "current_url")
     assert all((hasattr(instance, attr) for attr in public_attrs))
 
 
-def test_css_finder(monkeypatch, chromedriver, find_any):
+def test_css_finder(chromedriver):
     # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver())
-    monkeypatch.setattr(_locator, "find_any", find_any)
     selector = '.test, [method="css"]'
 
     # Behavior: finder method is called
     element = instance.css(selector, True, False, None)
 
-    # Consequence: returns the result of find_any, in this case our MockElement exposing the selector
+    # Consequence: returns the result of BasePage.css, in this case our MockElement exposing the selector
     # noinspection PyUnresolvedReferences
     assert element.by == "css selector"
     # noinspection PyUnresolvedReferences
     assert element.target == selector
 
 
-def test_xpath_finder(monkeypatch, chromedriver, find_any):
+def test_xpath_finder(chromedriver):
     # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver())
-    monkeypatch.setattr(_locator, "find_any", find_any)
     xpath = "//[contains(@class,'test') and @method='xpath']"
 
     # Behavior: finder method is called
     element, *_ = instance.xpath(xpath, True, True, None)
 
-    # Consequence: returns the result of find_any, in this case our MockElement exposing the selector
+    # Consequence: returns the result of BasePage.xpath, in this case our MockElement exposing the selector
     assert element.by == "xpath"
     assert element.target == xpath
 
 
-def test_switch_finder(monkeypatch, chromedriver, find_any):
+def test_switch_finder(chromedriver):
     # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver())
-    monkeypatch.setattr(_locator, "find_any", find_any)
 
     def callback(el):
         el.callback_counter += 1

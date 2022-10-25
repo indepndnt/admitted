@@ -14,7 +14,7 @@ from urllib3._collections import HTTPHeaderDict
 
 
 class Request:
-    """HTTP Request object to give a consistent API whether to window.fetch or outside_request.
+    """HTTP Request object to give a consistent API whether to window.fetch or page.direct_request.
 
     Args:
       method: The HTTP request verb; e.g. "GET", "POST", etc.
@@ -84,7 +84,7 @@ class Request:
 
 
 class Response:
-    """HTTP Response object to give a consistent API whether from window.fetch or outside_request."""
+    """HTTP Response object to give a consistent API whether from window.fetch or page.direct_request."""
 
     def __init__(self, *, url: str, status: int, reason: str, headers: HTTPHeaderDict):
         self.url = url

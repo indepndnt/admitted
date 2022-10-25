@@ -1,8 +1,8 @@
 from __future__ import annotations
 import logging
 from ._base import BasePage
-from ._locator import match_url
 from ._manager import ChromeManager
+from ._url import match_url
 
 logger = logging.getLogger(__name__)
 

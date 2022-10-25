@@ -42,31 +42,17 @@ def urls():
 
 
 class MockElement:
-    def __init__(self, _driver, _by, _target, _multiple, _mapping):
+    def __init__(self, _driver, _by, _target):
         self.id = "id_one"
         self.driver = _driver
         self.by = _by
         self.target = _target
-        self.multiple = _multiple
-        self.mapping = _mapping
         self.callback_counter = 0
 
     def get_property(self, item):
         if item != "id":
             raise TypeError("I think you wrote this test wrong.")
         return self.id
-
-
-@pytest.fixture()
-def find_any():
-    """Find a mocked WebElement that exposes the details of the find_any call and a callback counter."""
-
-    def func(driver, by, target, multiple, wait, mapping):
-        if multiple:
-            return [MockElement(driver, by, target, multiple, mapping)]
-        return MockElement(driver, by, target, multiple, mapping)
-
-    return func
 
 
 @pytest.fixture()
@@ -115,9 +101,9 @@ def chromedriver():
                 self._current_url = url
 
         def find_element(self, by=None, value=None):
-            return MockElement(self, by, value, False, None)
+            return MockElement(self, by, value)
 
         def find_elements(self, by=None, value=None):
-            return [MockElement(self, by, value, True, None)]
+            return [MockElement(self, by, value)]
 
     return Mock

@@ -1,3 +1,4 @@
+# This is the result of Object.keys(window) on a new Chrome tab
 DEFAULT_WINDOW_ATTRIBUTES = [
     "0",
     "JSCompiler_renameProperty",

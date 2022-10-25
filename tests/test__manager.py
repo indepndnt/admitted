@@ -5,7 +5,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome import webdriver
 
 # noinspection PyProtectedMember
-from admitted import _manager, _outside, _service, models
+from admitted import _manager, _service, _url, models
 
 
 class MockProcess:
@@ -81,7 +81,7 @@ def test_chrome_wait(chromedriver):
 
 def test_upgrade_chromedriver(monkeypatch, tmp_path):
     # Antecedent: an instance of ChromeManager
-    # force the call to outside_request to return a mock chromedriver zip file
+    # force the call to direct_request to return a mock chromedriver zip file
     zip_content = (
         b"PK\x03\x04\x14\x00\x00\x00\x08\x00\xc7j=Uh\x1f\xac\x8d\x0e\x00\x00\x00\x0c\x00\x00\x00\x11\x00\x00\x00"
         b"chromedriver_testK\xce(\xca\xcfMM)\xca,K-\x02\x00PK\x01\x02\x14\x03\x14\x00\x00\x00\x08\x00\xc7j=Uh\x1f\xac"
@@ -91,7 +91,7 @@ def test_upgrade_chromedriver(monkeypatch, tmp_path):
     # noinspection PyTypeChecker
     response = models.Response(url="", status=200, reason="OK", headers=None)
     response._content = zip_content
-    monkeypatch.setattr(_outside, "outside_request", lambda *a, **kw: response)
+    monkeypatch.setattr(_url, "direct_request", lambda *a, **kw: response)
     # set platform variables such that ChromeManager will expect what's in our zip file
     _manager.ChromeManager._platform_vars = _manager.PlatformVariables()
     _manager.ChromeManager._platform_vars.chromedriver_filename = "chromedriver_test"
@@ -132,7 +132,7 @@ def test_instantiate_chrome_manager(monkeypatch):
     # noinspection PyTypeChecker
     response = models.Response(url="", status=200, reason="OK", headers=None)
     response._text = "42.42.42.43"
-    monkeypatch.setattr(_outside, "outside_request", lambda *a, **kw: response)
+    monkeypatch.setattr(_url, "direct_request", lambda *a, **kw: response)
     subprocess.run = mock_run
 
     def mock_start(self):
@@ -148,7 +148,7 @@ def test_instantiate_chrome_manager(monkeypatch):
     has_chrome_wait_instance = isinstance(instance.wait, _manager.ChromeWait)
     has_service_process = instance.service.process
     # trigger kill_pids
-    _manager.kill_pids(instance, [])
+    _service.kill_pids(instance, [])
 
     # Consequence: no exceptions, instance has attributes created in __init__, and process.terminate was called
     assert has_chrome_wait_instance is True

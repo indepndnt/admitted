@@ -20,7 +20,7 @@ installed Chrome version.
 
 We expose a `fetch` method to make HTTP requests to the site
 with credentials, eliminating the need to copy cookies and
-headers; and an `outside_request` method that uses `urllib3`
+headers; and a `direct_request` method that uses `urllib3`
 (which is also a dependency of Selenium) to make anonymous
 HTTP requests.
 
@@ -109,20 +109,21 @@ print(f"Received '{page.get_interesting_text()}'. Interesting!")
 page.do_page_action()
 print(f"Non-default global variables are {page.window.new_keys()}")
 print(f"The document title is '{page.window['document.title']}'.")
-response = page.window.fetch(method="post", url="/api/option", payload={"showInterest": True}, headers={"x-snowflake": "example-option-header"})
+response = page.window.fetch(method="post", url="/api/option", payload={"showInterest": True},
+                             headers={"x-snowflake": "example-option-header"})
 print(f"Fetch returned '{response.json}'.")
-response = page.outside_request(method="get", url="https://www.google.com")
+response = page.direct_request(method="get", url="https://www.google.com")
 print(f"The length of Google's page source is {len(response.text)} characters.")
 ```
 
 ### HTTP Response API
-The `Page.window.fetch` and `Page.outside_request` methods
+The `Page.window.fetch` and `Page.direct_request` methods
 both return a `Response` object with the following API.
 - `content` property: Response body as `bytes`.
 - `text` property: Response body as `str`, or `None`.
 - `json` property: JSON parsed response body, or `None`.
 - `html` property: `lxml` parsed HTML element tree, or `None`.
-- `write_stream` method: Stream response data to the provided file pointer if `outside_request` method was called with `stream=True`, otherwise writes `Response.content`.
+- `write_stream` method: Stream response data to the provided file pointer if `direct_request` method was called with `stream=True`, otherwise writes `Response.content`.
   - `destination` argument: file pointer for a file opened with a write binary mode.
   - `chunck_size` argument: (optional) number of bytes to write at a time.
   - Returns `destination`.

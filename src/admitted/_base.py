@@ -2,22 +2,20 @@ from __future__ import annotations
 import logging
 import time
 from typing import Callable
+from warnings import warn
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.common.by import By
+from . import _locator, _manager, _url, _window
 from .element import Element
 from .exceptions import NavigationError
-from . import _locator
-from ._manager import ChromeManager
-from ._outside import outside_request
-from ._window import Window
 
 logger = logging.getLogger(__name__)
 
 
-class BasePage:
+class BasePage(_locator.Locator):
     """Represents a page on a web site."""
 
-    def __init__(self, browser: ChromeManager, retries: int = 3, debug: bool = False):
+    # noinspection PyMissingConstructor
+    def __init__(self, browser: _manager.ChromeManager, retries: int = 3, debug: bool = False):
         """Initialize common class attributes
 
         Args:
@@ -26,55 +24,14 @@ class BasePage:
           debug: If True, will output chromedriver.log on the desktop and suppress retries.
         """
         self.browser = browser
-        self.window = Window(self.browser)
-        self.outside_request = outside_request
+        self.window = _window.Window(self.browser)
+        self.direct_request = _url.direct_request
         self.retries = 0 if debug else retries
 
-    def css(
-        self,
-        selector: str,
-        wait: bool = True,
-        multiple: bool = False,
-        mapping: dict[str, str] | None = None,
-    ) -> Element | list[Element]:
-        """Return the element with the given CSS selector.
-
-        Args:
-          selector: The css selector identifying the element.
-          wait: If true, wait for element to be present.
-          multiple: If true, return a list of all matching elements.
-          mapping: If set, will be used to expand template values in selector.
-
-        Returns:
-          An Element object of the discovered element.
-
-        Raises:
-          TimeoutException: No element matching the specified selector was found.
-        """
-        return _locator.find_any(self.browser, By.CSS_SELECTOR, selector, multiple, wait, mapping)
-
-    def xpath(
-        self,
-        path: str,
-        wait: bool = True,
-        multiple: bool = False,
-        mapping: dict[str, str] | None = None,
-    ) -> Element | list[Element]:
-        """Return the element with the given XPath.
-
-        Args:
-          path: The XPath identifying the element.
-          wait: If true, wait for element to be present.
-          multiple: If true, return a list of all matching elements.
-          mapping: If set, will be used to expand template values in path.
-
-        Returns:
-          An Element object of the discovered element.
-
-        Raises:
-          TimeoutException: No element matching the specified XPath was found.
-        """
-        return _locator.find_any(self.browser, By.XPATH, path, multiple, wait, mapping)
+    @property
+    def parent(self):
+        """Connect Locator methods to the WebDriver instance"""
+        return self.browser
 
     def switch_id(self, options: dict[str, Callable[[Element], Element]]) -> Element:
         """Wait for any of several elements to become available and return the first one found.
@@ -89,9 +46,10 @@ class BasePage:
         Raises:
           TimeoutException: No element with one of the specified IDs was found within the allotted time.
         """
+        warn("The method `switch_id` is being deprecated. Use CSS like '@{id}, @{id}'.", PendingDeprecationWarning, 2)
         ids = options.keys()
         selector = ", ".join([f'[id="{id_}"]' for id_ in ids])
-        element = _locator.find_any(self.browser, By.CSS_SELECTOR, selector, False, True, None)
+        element = self.css(selector)
         found = element.get_property("id")
         return options[found](element)
 
@@ -129,7 +87,7 @@ class BasePage:
                     break
                 # if we got where we were going, we're done!
                 expected_url = enforce_url if isinstance(enforce_url, str) else url
-                if _locator.match_url(self.current_url, expected_url):
+                if _url.match_url(self.current_url, expected_url):
                     break
             except WebDriverException as exc:
                 logger.debug("Error on try %s: %s.", retry, exc)

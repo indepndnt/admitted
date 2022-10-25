@@ -1,20 +1,18 @@
 from __future__ import annotations
 import atexit
 import logging
-from os import getenv, kill
+from os import getenv
 from pathlib import Path
 from platform import system, processor
-import signal
 import subprocess
 from tempfile import TemporaryFile
-import time
+from warnings import warn
 from zipfile import ZipFile
 
-import psutil
 from selenium.webdriver.chrome import options, webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 
-from . import _outside, _service
+from . import _service, _url
 from .element import Element
 from .exceptions import ChromeDriverVersionError
 
@@ -43,25 +41,26 @@ class ChromeManager(webdriver.WebDriver):
     # `self._web_element_cls` to instantiate WebElements from the find_element(s) methods
     _web_element_cls = Element
 
-    def __init__(self, timeout: int = 30, debug: bool = False):
+    def __init__(self, timeout: int = 30, debug: bool = False, reuse_service: bool = False):
         """Initialize the Chrome class
 
         Args:
           timeout: Default timeout in seconds for wait operations.
           debug: If True, will output chromedriver.log on the desktop, suppress retries, and run NOT headless.
+          reuse_service: If True and an instance of chromedriver is running, we will attach to existing process.
         """
         version = self._chromedriver_upgrade_needed()
         if version:
             self._upgrade_chromedriver(version)
 
         # Start Chrome
-        super().__init__(options=self._driver_options(debug), service=self._driver_service(debug))
+        super().__init__(options=self._driver_options(debug), service=self._driver_service(debug, reuse_service))
         if not debug:
             logging.getLogger("selenium.webdriver.remote.remote_connection").setLevel(logging.WARNING)
             logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
             logging.getLogger("filelock").setLevel(logging.WARNING)
         # TODO: move wait to elements
-        self.wait = ChromeWait(self, timeout=timeout)
+        self._wait = timeout
 
         # get PIDs of the Chromedriver and Chrome processes as they
         # tend to not properly exit when the script has completed
@@ -70,7 +69,15 @@ class ChromeManager(webdriver.WebDriver):
         if chromedriver_process.name() == self._var.chromedriver_filename:
             pids.append(chromedriver_process.pid)
         # register a function to kill Chromedriver and Chrome at exit
-        atexit.register(kill_pids, self, pids)
+        if not reuse_service:
+            atexit.register(_service.kill_pids, self, pids)
+
+    @property
+    def wait(self):
+        warn("The method `wait` is moving to Element/locator methods.", PendingDeprecationWarning, 2)
+        if isinstance(self._wait, int):
+            self._wait = ChromeWait(self, timeout=self._wait)
+        return self._wait
 
     @property
     def _var(self):
@@ -102,10 +109,11 @@ class ChromeManager(webdriver.WebDriver):
             chrome_options.add_argument("--log-level=3")
         return chrome_options
 
-    def _driver_service(self, debug: bool) -> _service.Service:
+    def _driver_service(self, debug: bool, reuse_service: bool) -> _service.Service:
         return _service.Service(
             executable_path=self._var.user_bin_path / self._var.chromedriver_filename,
             log_path=(HOME / "Desktop" / "chromedriver.log") if debug else None,
+            reuse_service=reuse_service,
         )
 
     def _chromedriver_upgrade_needed(self) -> str:
@@ -116,7 +124,7 @@ class ChromeManager(webdriver.WebDriver):
 
         # get recommended chromedriver version
         url = f"https://chromedriver.storage.googleapis.com/LATEST_RELEASE_{chrome_version}"
-        recommended = _outside.outside_request("GET", url).text
+        recommended = _url.direct_request("GET", url).text
         if recommended == chromedriver_version:
             return ""
         chromedriver_version_parts = [int(p) for p in chromedriver_version.split(".")]
@@ -152,7 +160,7 @@ class ChromeManager(webdriver.WebDriver):
     def _upgrade_chromedriver(self, version: str) -> None:
         """Download, unzip, and install ChromeDriver."""
         url = f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_{self._var.platform}.zip"
-        fp = _outside.outside_request("GET", url, stream=True).write_stream(TemporaryFile())
+        fp = _url.direct_request("GET", url, stream=True).write_stream(TemporaryFile())
         # replace current chromedriver with downloaded version
         path = self._var.user_bin_path
         filename = self._var.chromedriver_filename
@@ -244,22 +252,3 @@ class PlatformVariables:
         self.user_bin_path = Path("/usr/local/bin")
         self.user_data_path = str(HOME / "Library" / "Application Support" / "Google" / "Chrome" / "Default")
         self.chrome_version_command = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--version"]
-
-
-def kill_pids(driver: webdriver.WebDriver, process_ids: list[int]) -> None:
-    """Function registered in `atexit` to kill Chromedriver and Chrome so we don't leave orphan processes."""
-    # first let the ChromeDriver service shut itself down
-    driver.quit()
-    # for all spawned Chrome/ChromeDriver processes, first ask nicely, then force terminate
-    for process_signal in (getattr(signal, s) for s in ("SIGTERM", "SIGKILL") if hasattr(signal, s)):
-        for pid in process_ids:
-            if not psutil.pid_exists(pid):
-                continue
-            try:
-                kill(pid, process_signal)
-            except ProcessLookupError:
-                pass
-        process_ids = [pid for pid in process_ids if psutil.pid_exists(pid)]
-        if not process_ids:
-            break
-        time.sleep(0.1)

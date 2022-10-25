@@ -1,9 +1,12 @@
 from __future__ import annotations
 import errno
+from os import kill
 from pathlib import Path
+import signal
 from time import sleep
 from subprocess import DEVNULL, PIPE, Popen
 import psutil
+from selenium.webdriver.chrome import webdriver
 from selenium.webdriver.common import utils
 from .exceptions import ChromeDriverServiceError
 
@@ -114,9 +117,11 @@ class Service:
             self.process.terminate()
             self.process.wait()
             self.process.kill()
-            self.process = None
-        except OSError:
+        except psutil.Error:
+            # most likely psutil.NoSuchProcess
             pass
+        finally:
+            self.process = None
 
     def __del__(self):
         # `subprocess.Popen` doesn't send signal on `__del__`, so we attempt to close the
@@ -127,3 +132,24 @@ class Service:
             self.stop()
         except Exception:
             pass
+
+
+def kill_pids(driver: webdriver.WebDriver, process_ids: list[int]) -> None:
+    """Function registered in `atexit` to kill Chromedriver and Chrome so we don't leave orphan processes."""
+    # first let the ChromeDriver service shut itself down
+    # WebDriver.quit first sends a "quit" command to ChromeDriver, then calls Service.stop
+    driver.quit()
+    # for all spawned Chrome/ChromeDriver processes, first ask nicely, then force terminate
+    # although Service.stop should have shut everything down, sometimes it leaves orphans
+    for process_signal in (getattr(signal, s) for s in ("SIGTERM", "SIGKILL") if hasattr(signal, s)):
+        for pid in process_ids:
+            if not psutil.pid_exists(pid):
+                continue
+            try:
+                kill(pid, process_signal)
+            except ProcessLookupError:
+                pass
+        process_ids = [pid for pid in process_ids if psutil.pid_exists(pid)]
+        if not process_ids:
+            break
+        sleep(0.1)
