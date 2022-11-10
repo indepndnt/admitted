@@ -73,16 +73,18 @@ class Site(BasePage):
         if self.is_authenticated():
             return self
         # if we are already on the login page, no need to navigate
-        path_substr = self._login_opts.get("path_substr", False)
-        ignore_query = not self._login_opts.get("strict_query", False)
-        if not match_url(self.current_url, self.login_url, ignore_query=ignore_query, path_substr=path_substr):
+        match_kwargs = {
+            "path_substr": self._login_opts.get("path_substr", False),
+            "ignore_query": not self._login_opts.get("strict_query", False),
+        }
+        if not match_url(self.current_url, self.login_url, **match_kwargs):
             if "start_url" in self._login_opts:
                 url = self._login_opts["start_url"]
                 enforce_url = self.login_url
             else:
                 url = self.login_url
                 enforce_url = True
-            self._navigate(url=url, enforce_url=enforce_url)
+            self._navigate(url=url, enforce_url=enforce_url, **match_kwargs)
         return self._do_login()
 
     def is_authenticated(self) -> bool:

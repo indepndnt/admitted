@@ -27,6 +27,9 @@ dependencies = [
     "selenium",
     "urllib3",
 ]
+optional-dependencies.debug = [
+    "html2text",
+]
 optional-dependencies.dev = [
     "black",
     "coverage[toml]",

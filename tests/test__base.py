@@ -14,7 +14,7 @@ def test_instantiate_base(chromedriver):
     debug = False
 
     # Behavior: BasePage is instantiated
-    instance = BasePage(chromedriver(), retries, debug)
+    instance = BasePage(chromedriver(), retries=retries, debug=debug)
 
     # Consequence: instance has public attributes and methods
     public_attrs = ("browser", "window", "direct_request", "css", "xpath", "switch_id", "current_url")
@@ -49,27 +49,6 @@ def test_xpath_finder(chromedriver):
     assert element.target == xpath
 
 
-def test_switch_finder(chromedriver):
-    # Antecedent: BasePage is instantiated
-    instance = BasePage(chromedriver())
-
-    def callback(el):
-        el.callback_counter += 1
-        return el
-
-    # Behavior: finder method is called
-    # noinspection PyTypeChecker
-    element = instance.switch_id({"id_one": callback, "id_two": callback})
-
-    # Consequence: method locator is as expected and called one of the callbacks
-    # noinspection PyUnresolvedReferences
-    assert element.callback_counter == 1
-    # noinspection PyUnresolvedReferences
-    assert element.by == "css selector"
-    # noinspection PyUnresolvedReferences
-    assert element.target == '[id="id_one"], [id="id_two"]'
-
-
 def test_current_url(chromedriver, urls):
     # Antecedent: BasePage is instantiated
     instance = BasePage(chromedriver())
@@ -92,7 +71,7 @@ def test_navigate_chrome_success(chromedriver, urls):
         return True
 
     # Behavior: call _navigate method
-    instance._navigate(urls.test, callback, retry_wait=0, retries_override=0, enforce_url=True)
+    instance._navigate(urls.test, callback=callback, retry_wait=0, retries_override=0, enforce_url=True)
 
     # Consequence: succeeded without reaching the pre-pause callback
     # noinspection PyUnresolvedReferences
@@ -104,7 +83,7 @@ def test_navigate_chrome_mismatch_success(chromedriver, urls):
     instance = BasePage(chromedriver())
 
     # Behavior: call _navigate method
-    instance._navigate(urls.change, None, retry_wait=0, retries_override=0, enforce_url=False)
+    instance._navigate(urls.change, retry_wait=0, retries_override=0, enforce_url=False)
 
     # Consequence: url mismatch but succeeded because enforce_url is False
 
@@ -120,7 +99,7 @@ def test_navigate_chrome_callback_success(chromedriver, urls):
         return True
 
     # Behavior: call _navigate method
-    instance._navigate(urls.change, callback, retry_wait=0, retries_override=1, enforce_url=True)
+    instance._navigate(urls.change, callback=callback, retry_wait=0, retries_override=1, enforce_url=True)
 
     # Consequence: failed due to url mismatch then received success from the pre-pause callback
     # noinspection PyUnresolvedReferences
@@ -139,7 +118,7 @@ def test_navigate_chrome_fail(chromedriver, urls):
 
     # Behavior: call _navigate method
     with pytest.raises(NavigationError, match=r"^Failed after \d tries navigating to .*"):
-        instance._navigate(urls.fail, callback, retry_wait=0, retries_override=2, enforce_url=False)
+        instance._navigate(urls.fail, callback=callback, retry_wait=0, retries_override=2, enforce_url=False)
 
     # Consequence: exception was raised after pre-pause callback was called after each attempt
     # noinspection PyUnresolvedReferences
@@ -152,6 +131,6 @@ def test_navigate_chrome_mismatch(chromedriver, urls):
 
     # Behavior: call _navigate method
     with pytest.raises(NavigationError, match=r"^Failed after \d tries navigating to .*"):
-        instance._navigate(urls.change, None, retry_wait=0, retries_override=0, enforce_url=True)
+        instance._navigate(urls.change, retry_wait=0, retries_override=0, enforce_url=True)
 
     # Consequence: exception was raised as expected

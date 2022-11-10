@@ -116,7 +116,7 @@ class Locator:
             if is_checked is value:
                 return
             if time.monotonic() > end_time:
-                raise TimeoutException(f"Time expired {'un-' if value else ''}checking '{input_selector}'.")
+                raise TimeoutException(f"Time expired {'' if value else 'un-'}checking '{input_selector}'.")
             self.css(target_selector).click()
             time.sleep(0.2)
 

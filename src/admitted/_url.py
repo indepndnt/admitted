@@ -5,7 +5,7 @@ import urllib3
 from .models import Request, Response
 
 
-def match_url(url1: str, url2: str, ignore_query: bool = False, path_substr: bool = False) -> bool:
+def match_url(url1: str, url2: str, *, ignore_query: bool = False, path_substr: bool = False) -> bool:
     """Report whether the domain, path, and query of both URLs match.
 
     Examples:
@@ -31,7 +31,7 @@ def match_url(url1: str, url2: str, ignore_query: bool = False, path_substr: boo
     return ignore_query or url_a.query == url_b.query
 
 
-def direct_request(method: str, url: str, stream: bool = False, json_args: dict = None, **kwargs) -> Response:
+def direct_request(method: str, url: str, *, stream: bool = False, json_args: dict = None, **kwargs) -> Response:
     """Make an http request ignoring/bypassing Chrome.
 
     Args:

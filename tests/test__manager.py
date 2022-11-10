@@ -145,11 +145,11 @@ def test_instantiate_chrome_manager(monkeypatch):
     instance.service.process.pid = "running"
     subprocess.run = None
     # pre-acquire assertion values so they're not lost when kill_pids calls quit
-    has_chrome_wait_instance = isinstance(instance.wait, _manager.ChromeWait)
+    has_vendor_prefix = instance.vendor_prefix
     has_service_process = instance.service.process
     # trigger kill_pids
     _service.kill_pids(instance, [])
 
     # Consequence: no exceptions, instance has attributes created in __init__, and process.terminate was called
-    assert has_chrome_wait_instance is True
+    assert has_vendor_prefix == "goog"
     assert has_service_process.pid == "terminated"

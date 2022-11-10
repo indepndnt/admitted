@@ -15,7 +15,7 @@ class BasePage(_locator.Locator):
     """Represents a page on a web site."""
 
     # noinspection PyMissingConstructor
-    def __init__(self, browser: _manager.ChromeManager, retries: int = 3, debug: bool = False):
+    def __init__(self, browser: _manager.ChromeManager, *, retries: int = 3, debug: bool = False):
         """Initialize common class attributes
 
         Args:
@@ -61,11 +61,12 @@ class BasePage(_locator.Locator):
     def _navigate(
         self,
         url: str,
-        callback: Callable[[int], bool] | None = None,
         *,
+        callback: Callable[[int], bool] | None = None,
         retry_wait: int = 2,
         retries_override: int | None = None,
         enforce_url: bool | str = True,
+        **match_kwargs,
     ) -> None:
         """Navigate Chrome to the specified URL, retrying with exponential back-off.
 
@@ -76,20 +77,25 @@ class BasePage(_locator.Locator):
           retry_wait: Number of seconds to wait for first retry if initial navigation fails.
           retries_override: Number of times to attempt navigation, if other than instance default required.
           enforce_url: True or the expected URL to consider it an error if current_url != url after navigation.
+          match_kwargs: Additional arguments to modify URL enforcement; see _url.match_url.
         """
         retries = self.retries if retries_override is None else retries_override
         retry = 0
-        last_exception = None
         while True:
             try:
                 self.browser.get(url)
+                # if we don't care where we end up, we're done!
                 if not enforce_url:
                     break
                 # if we got where we were going, we're done!
                 expected_url = enforce_url if isinstance(enforce_url, str) else url
-                if _url.match_url(self.current_url, expected_url):
+                if _url.match_url(self.current_url, expected_url, **match_kwargs):
                     break
-            except WebDriverException as exc:
+                # give the user context in the traceback if we exhaust retries
+                raise NavigationError(
+                    f"Wrong destination: Expected URL {expected_url}; current URL is {self.current_url}."
+                )
+            except (WebDriverException, NavigationError) as exc:
                 logger.debug("Error on try %s: %s.", retry, exc)
                 last_exception = exc
             retry += 1

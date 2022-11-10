@@ -1,7 +1,7 @@
 # Admitted
 _/ədˈmɪtɪd/ verb : allowed entry (as to a place, fellowship, or privilege)_
 
-This project is brand new. The API is 100% guaranteed to change.
+This project is very new. The API is very likely to change.
 
 This library aims to make automating tasks that require
 authentication on web sites simpler. In general it would
@@ -19,10 +19,10 @@ ensuring the ChromeDriver version is correct for the current
 installed Chrome version.
 
 We expose a `fetch` method to make HTTP requests to the site
-with credentials, eliminating the need to copy cookies and
-headers; and a `direct_request` method that uses `urllib3`
-(which is also a dependency of Selenium) to make anonymous
-HTTP requests.
+with credentials through Chrome, eliminating the need to copy
+cookies and headers; and a `direct_request` method that uses
+`urllib3` (which is also a dependency of Selenium) to make
+anonymous HTTP requests.
 
 We also introduce a couple of methods that support exploring
 a site's Javascript environment from within Python:
@@ -34,7 +34,10 @@ installed, otherwise the raw page source).
 
 # Installation
 #### pip
-`pip install admitted`
+- `pip install admitted`, or
+- `pip install admitted[debug]` to include `html2text` for
+  exploratory work, or
+- `pip install admitted[dev]` for the development environment.
 
 #### Requirement format for this GitHub repo as a dependency
 `admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
@@ -54,13 +57,19 @@ All other Page objects will have a reference to this for
 testing if you are authenticated and repeating the login
 if necessary.
 
+The default behavior of `Site.__init__` is to call the `login`
+method; this can be avoided by passing `postpone=True` to `Site`.
+
 ```python
 from admitted import Site, Page
 
 class MySite(Site):
     def __init__(self):
         # get login credentials from secure location
-        credentials = {}
+        credentials = {
+          "username": "user",
+          "password": "do_not_actually_put_your_password_in_your_code",
+        }
         super().__init__(
             login_url="https://www.example.com/login",
             credentials=credentials,
@@ -82,6 +91,8 @@ class MySite(Site):
 ```
 
 ### Define a Page
+The default behavior of `Page.navigate` is to call `self.site.login`
+on the first retry if navigation fails.
 
 ```python
 class MyPage(Page):
@@ -134,7 +145,8 @@ both return a `Response` object with the following API.
 - [lxml html parser documentation](https://lxml.de/lxmlhtml.html)
 
 # Development
-#### .git/hooks/pre-commit
+Configure pre-commit hooks to format, lint, and test code before commit.
+#### `.git/hooks/pre-commit`
 ```bash
 #!/bin/bash
 if [ -z "${VIRTUAL_ENV}" ] ; then
@@ -153,6 +165,6 @@ pylint --rcfile ${root}/pyproject.toml ${root}/src/admitted
 pytest -x -rN --no-cov --no-header
 ```
 
-#### Release
+### Release
 A release is published to PyPI by a GitHub Action when there
 is a push to `main` with a tag. See `.github/workflows/publish.yml`.

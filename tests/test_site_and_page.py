@@ -19,7 +19,7 @@ class SiteTest(site.Site):
     # we override _navigate only to ensure retry_wait is zero so tests don't take forever
     def _navigate(self, url, callback=None, *, retry_wait=2, **kwargs):
         url = url.replace("change", "login")
-        super()._navigate(url, callback, retry_wait=0, **kwargs)
+        super()._navigate(url, callback=callback, retry_wait=0, **kwargs)
 
     # we put an _authenticated flag in the mock chromebrowser to simulate non-auth redirects.
     def is_authenticated(self) -> bool:
