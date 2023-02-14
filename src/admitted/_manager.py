@@ -88,7 +88,8 @@ class ChromeManager(webdriver.WebDriver):
 
     def _driver_options(self, debug: bool) -> options.Options:
         chrome_options = options.Options()
-        chrome_options.headless = not debug
+        if not debug:
+            chrome_options.add_argument("--headless=new")
         # using user's default user-data-dir means fewer 2FA requests
         chrome_options.add_argument(f"user-data-dir={self._var.user_data_path}")
         chrome_options.add_argument("--disable-gpu")
@@ -233,12 +234,22 @@ class PlatformVariables:
         local_app_data_env = getenv("LOCALAPPDATA")
         local_app_data = Path(local_app_data_env) if local_app_data_env else (HOME / "AppData" / "Local")
         self.user_data_path = str(local_app_data / "Google" / "Chrome" / "User Data")
+        # although HKEY_CURRENT_USER\Software\Google\Chrome\BLBeacon /v version is recommended in various places online,
+        # I have discovered that between the time that Chrome is updated and the next time that it is run, this
+        # registry key is NOT updated.
+        # I suspect the Google Update state for Chrome will be updated sooner...
+        # {8A69D345-D564-463C-AFF1-A69D9E530F96} is the GUID for Chrome, which you can also find referenced under
+        # HKCU\Software\Microsoft\Active Setup\Installed Components, HKCU\Software\Google\Update\ClientState, or
+        # HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components
+        # If this doesn't work, my next best idea is to get the version from the path to Chrome's setup.exe, which is
+        # like 'Program Files\Google\Chrome\Application\{version}\Installer\setup.exe', and this path is referenced
+        # in various places in the registry.
         self.chrome_version_command = [
             "reg",
             "query",
-            "HKEY_CURRENT_USER\\Software\\Google\\Chrome\\BLBeacon",
+            r"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Google\Update\ClientState\{8A69D345-D564-463C-AFF1-A69D9E530F96}",
             "/v",
-            "version",
+            "pv",
         ]
 
     def _set_linux(self):

@@ -6,15 +6,17 @@ from selenium.common.exceptions import JavascriptException
 from ._constants import DEFAULT_WINDOW_ATTRIBUTES
 from .models import Request, Response
 
+# since Chrome 110, calling fetch from a new tab results in an 'Aw Snap!' page with the error code
+# RESULT_CODE_KILLED_BAD_MESSAGE and disconnects from ChromeDriver
 FETCH_SCRIPT = """
-const r = await fetch('${url}', ${options}).catch(e => e);
-if (typeof r.clone !== 'function') return {error: {name: e.name, message: e.message}};
-const headers = [];
-for ([h, v] of r.headers.entries()) {headers.push([h, v])};
-const body = new Uint8Array(await r.clone().arrayBuffer().catch(e => null));
-const text = await r.clone().text().catch(e => null);
-const json = await r.json().catch(e => null);
-return {url: r.url, status: r.status, reason: r.statusText, headers, body, text, json};
+if (window.location.protocol==='chrome:') return {error:{name:'NO_FETCH',message:'Cannot fetch from a new tab.'}};
+const r = await fetch('${url}',${options}).catch(e=>e);
+if (typeof r.clone!=='function') return {error:{name:r?.name,message:r?.message}};
+const headers = Array.from(r.headers.entries()).reduce((acc,hdr)=>acc.concat([hdr]),[]);
+const body = new Uint8Array(await r.clone().arrayBuffer().catch(e=>null));
+const text = await r.clone().text().catch(e=>null);
+const json = await r.json().catch(e=>null);
+return {url:r.url,status:r.status,reason:r.statusText,headers,body,text,json};
 """
 
 
