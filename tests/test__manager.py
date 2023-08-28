@@ -122,7 +122,7 @@ def test_get_chrome_version():
     subprocess.run = None
 
     # Consequence
-    assert version == "42"
+    assert version == "42.42.42.42"
 
 
 def test_instantiate_chrome_manager(monkeypatch):

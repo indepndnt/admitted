@@ -5,7 +5,9 @@ from os import getenv
 from pathlib import Path
 from platform import system, processor
 import subprocess
+import sys
 from tempfile import TemporaryFile
+from typing import Any
 from warnings import warn
 from zipfile import ZipFile
 
@@ -50,7 +52,9 @@ class ChromeManager(webdriver.WebDriver):
           reuse_service: If True and an instance of chromedriver is running, we will attach to existing process.
         """
         version = self._chromedriver_upgrade_needed()
-        if version:
+        if version == "LATEST":
+            self._install_cft()
+        elif version:
             self._upgrade_chromedriver(version)
 
         # Start Chrome
@@ -121,11 +125,17 @@ class ChromeManager(webdriver.WebDriver):
         """Compare Chrome and ChromeDriver and return the recommended ChromeDriver version if an upgrade is needed."""
         # get version of installed Chrome and ChromeDriver
         chrome_version = self._get_chrome_version()
+        major_chrome_version = int(chrome_version.split(".", 1)[0])
         chromedriver_version = self._get_chromedriver_version()
 
         # get recommended chromedriver version
-        url = f"https://chromedriver.storage.googleapis.com/LATEST_RELEASE_{chrome_version}"
-        recommended = _url.direct_request("GET", url).text
+        if major_chrome_version >= 115:
+            recommended = self._get_chrome_for_testing_version()
+            if not recommended:
+                return "LATEST"
+        else:
+            url = f"https://chromedriver.storage.googleapis.com/LATEST_RELEASE_{major_chrome_version}"
+            recommended = _url.direct_request("GET", url).text
         if recommended == chromedriver_version:
             return ""
         chromedriver_version_parts = [int(p) for p in chromedriver_version.split(".")]
@@ -143,8 +153,59 @@ class ChromeManager(webdriver.WebDriver):
         if out.returncode != 0:
             raise ChromeDriverVersionError(f"Failed to get Chrome version, returned {out}")
         full_chrome_version = out.stdout.decode().strip().rsplit(" ", 1)[-1]
-        chrome_version = full_chrome_version.split(".", 1)[0]
-        return chrome_version
+        if not all((p.isnumeric() for p in full_chrome_version.split("."))):
+            raise ChromeDriverVersionError(f"Invalid Chrome version received: '{full_chrome_version}'")
+        return full_chrome_version
+
+    def _get_chrome_for_testing_version(self) -> str:
+        """Return the current Google Chrome for Testing version on this system."""
+        out = subprocess.run(self._var.chrome_for_testing_version_command, stdout=subprocess.PIPE, check=False)
+        if out.returncode == 1:
+            # return code 1 probably means it's not installed
+            return ""
+        elif out.returncode != 0:
+            raise ChromeDriverVersionError(f"Failed to get Chrome for Testing version, returned {out}")
+        full_chrome_for_testing_version = out.stdout.decode().strip().rsplit(" ", 1)[-1]
+        if not all((p.isnumeric() for p in full_chrome_for_testing_version.split("."))):
+            raise ChromeDriverVersionError(
+                f"Invalid Chrome for Testing version received: '{full_chrome_for_testing_version}'"
+            )
+        return full_chrome_for_testing_version
+
+    def _get_cft_urls(self) -> list[str]:
+        versions = self._get_cft_versions()
+        downloads = versions[-1]["downloads"]
+        return [
+            self._get_cft_version_download(downloads, "chrome", "LATEST"),
+            self._get_cft_version_download(downloads, "chromedriver", "LATEST"),
+        ]
+
+    def _get_chromedriver_url(self, version: str) -> str:
+        major_version = int(version.split(".", 1)[0])
+        if major_version < 115:
+            return f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_{self._var.platform}.zip"
+        versions = self._get_cft_versions()
+        for item in versions:
+            if item["version"] == version:
+                return self._get_cft_version_download(item["downloads"], "chromedriver", version)
+        raise ChromeDriverVersionError(f"Version {version} not found in Chrome for Testing downloads.")
+
+    @staticmethod
+    def _get_cft_versions() -> list[dict[str, Any]]:
+        return _url.direct_request(
+            "GET", "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
+        ).json["versions"]
+
+    def _get_cft_version_download(self, downloads: dict[str, Any], key: str, version: str):
+        # Chrome for Testing has different platform names.
+        plat = {"mac64_m1": "mac-arm64", "mac64": "mac-x64"}.get(self._var.platform, self._var.platform)
+        if plat == "win32" and sys.maxsize > 2**32:
+            plat = "win64"
+        try:
+            cft_url = next((dl for dl in downloads[key] if dl["platform"] == plat))["url"]
+        except (StopIteration, KeyError):
+            raise ChromeDriverVersionError(f"Failed getting Chrome for Testing versions for Chrome {version} on {plat}")
+        return cft_url
 
     def _get_chromedriver_version(self) -> str:
         """Return the current ChromeDriver version on this system."""
@@ -160,7 +221,7 @@ class ChromeManager(webdriver.WebDriver):
 
     def _upgrade_chromedriver(self, version: str) -> None:
         """Download, unzip, and install ChromeDriver."""
-        url = f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_{self._var.platform}.zip"
+        url = self._get_chromedriver_url(version)
         fp = _url.direct_request("GET", url, stream=True).write_stream(TemporaryFile())
         # replace current chromedriver with downloaded version
         path = self._var.user_bin_path
@@ -169,13 +230,23 @@ class ChromeManager(webdriver.WebDriver):
         download_file.unlink(missing_ok=True)
         fp.seek(0)
         with ZipFile(fp) as zip_file:
-            zip_file.extract(filename, path=path)
+            for file in zip_file.infolist():
+                if file.is_dir() or "chromedriver" not in file.filename:
+                    continue
+                file.filename = filename
+                zip_file.extract(file, path=path)
+                break
         fp.close()
         download_file.chmod(0o755)
         # confirm upgrade was successful
         current_version = self._get_chromedriver_version()
         if current_version != version:
             raise ChromeDriverVersionError(f"Failed up upgrade ChromeDriver from {current_version} to {version}.")
+
+    def _install_cft(self):
+        urls = self._get_cft_urls()
+        # TODO: install from the two URLs in `urls`
+        raise ChromeDriverVersionError(f"Chrome for Testing is not installed. Install from {urls[0]}")
 
     def debug_show_page(self):
         """For debugging: Quick dump of current page content to console as text."""
@@ -241,15 +312,19 @@ class PlatformVariables:
         # {8A69D345-D564-463C-AFF1-A69D9E530F96} is the GUID for Chrome, which you can also find referenced under
         # HKCU\Software\Microsoft\Active Setup\Installed Components, HKCU\Software\Google\Update\ClientState, or
         # HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components
-        # If this doesn't work, my next best idea is to get the version from the path to Chrome's setup.exe, which is
-        # like 'Program Files\Google\Chrome\Application\{version}\Installer\setup.exe', and this path is referenced
-        # in various places in the registry.
         self.chrome_version_command = [
             "reg",
             "query",
-            r"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Google\Update\ClientState\{8A69D345-D564-463C-AFF1-A69D9E530F96}",
+            r"HKLM\SOFTWARE\WOW6432Node\Google\Update\ClientState\{8A69D345-D564-463C-AFF1-A69D9E530F96}",
             "/v",
             "pv",
+        ]
+        self.chrome_for_testing_version_command = [
+            "reg",
+            "query",
+            r"HKCU\Software\Google\Chrome for Testing\BLBeacon",
+            "/v",
+            "version",
         ]
 
     def _set_linux(self):
@@ -257,9 +332,11 @@ class PlatformVariables:
         self.user_bin_path = HOME / ".local" / "bin"
         self.user_data_path = str(HOME / ".config" / "google-chrome" / "Default")
         self.chrome_version_command = ["google-chrome", "--version"]
+        self.chrome_for_testing_version_command = None
 
     def _set_mac(self, proc: str):
         self.platform = "mac64_m1" if proc == "arm" else "mac64"
         self.user_bin_path = Path("/usr/local/bin")
         self.user_data_path = str(HOME / "Library" / "Application Support" / "Google" / "Chrome" / "Default")
         self.chrome_version_command = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--version"]
+        self.chrome_for_testing_version_command = None

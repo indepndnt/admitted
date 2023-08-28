@@ -27,7 +27,7 @@ def no_sleep(monkeypatch):
 @pytest.fixture(autouse=True)
 def no_requests(monkeypatch):
     """Remove request method for all tests so we don't make network requests from tests."""
-    monkeypatch.delattr("urllib3.request.RequestMethods.request")
+    monkeypatch.delattr("urllib3.request")
 
 
 @pytest.fixture(autouse=True)
