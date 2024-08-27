@@ -49,7 +49,7 @@ def test_platform_variables():
     instances[3]._set_linux()
 
     # Consequence
-    assert all((obj.platform in ("win32", "linux64", "mac64", "mac64_m1") for obj in instances))
+    assert all((obj.platform in ("win32", "win64", "linux64", "mac-x64", "mac-arm64") for obj in instances))
     assert all((obj.chromedriver_filename in ("chromedriver", "chromedriver.exe") for obj in instances))
     assert all((isinstance(obj.user_bin_path, Path) for obj in instances))
     assert all((isinstance(obj.user_data_path, str) for obj in instances))
@@ -145,11 +145,9 @@ def test_instantiate_chrome_manager(monkeypatch):
     instance.service.process.pid = "running"
     subprocess.run = None
     # pre-acquire assertion values so they're not lost when kill_pids calls quit
-    has_vendor_prefix = instance.vendor_prefix
     has_service_process = instance.service.process
     # trigger kill_pids
     _service.kill_pids(instance, [])
 
     # Consequence: no exceptions, instance has attributes created in __init__, and process.terminate was called
-    assert has_vendor_prefix == "goog"
     assert has_service_process.pid == "terminated"

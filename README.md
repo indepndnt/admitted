@@ -42,6 +42,12 @@ installed, otherwise the raw page source).
 #### Requirement format for this GitHub repo as a dependency
 `admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
 
+### Chrome for Testing
+Chrome versions earlier than 115 are no longer supported.
+You need to have Chrome for Testing installed. See
+[Chrome for Testing availability](https://googlechromelabs.github.io/chrome-for-testing/)
+for download options.
+
 # Usage
 Generally, the `admitted` API is intended to follow the
 [encouraged practice of page object models](https://www.selenium.dev/documentation/test_practices/encouraged/page_object_models/)

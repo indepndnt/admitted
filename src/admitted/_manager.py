@@ -159,7 +159,12 @@ class ChromeManager(webdriver.WebDriver):
 
     def _get_chrome_for_testing_version(self) -> str:
         """Return the current Google Chrome for Testing version on this system."""
-        out = subprocess.run(self._var.chrome_for_testing_version_command, stdout=subprocess.PIPE, check=False)
+        out = subprocess.run(
+            self._var.chrome_for_testing_version_command,
+            stdout=subprocess.PIPE,
+            check=False,
+            cwd=self._var.user_bin_path,
+        )
         if out.returncode == 1:
             # return code 1 probably means it's not installed
             return ""
@@ -183,6 +188,13 @@ class ChromeManager(webdriver.WebDriver):
     def _get_chromedriver_url(self, version: str) -> str:
         major_version = int(version.split(".", 1)[0])
         if major_version < 115:
+            warn("Use of Chrome versions before 115 are deprecated.", DeprecationWarning, stacklevel=2)
+            if self._var.platform in ("win32", "win64"):
+                return f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_win32.zip"
+            if self._var.platform == "mac-arm64":
+                return f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_mac64_m1.zip"
+            if self._var.platform == "mac-x64":
+                return f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_mac64.zip"
             return f"https://chromedriver.storage.googleapis.com/{version}/chromedriver_{self._var.platform}.zip"
         versions = self._get_cft_versions()
         for item in versions:
@@ -198,9 +210,7 @@ class ChromeManager(webdriver.WebDriver):
 
     def _get_cft_version_download(self, downloads: dict[str, Any], key: str, version: str):
         # Chrome for Testing has different platform names.
-        plat = {"mac64_m1": "mac-arm64", "mac64": "mac-x64"}.get(self._var.platform, self._var.platform)
-        if plat == "win32" and sys.maxsize > 2**32:
-            plat = "win64"
+        plat = self._var.platform
         try:
             cft_url = next((dl for dl in downloads[key] if dl["platform"] == plat))["url"]
         except (StopIteration, KeyError):
@@ -213,7 +223,13 @@ class ChromeManager(webdriver.WebDriver):
         if not filepath.is_file():
             # ChromeDriver is not installed
             return "0.0.0.0"
-        out = subprocess.run([str(filepath), "--version"], stdout=subprocess.PIPE, check=False)
+        try:
+            out = subprocess.run([str(filepath), "--version"], stdout=subprocess.PIPE, check=False)
+        except OSError as exc:
+            # winerror 216 means chromedriver.exe is incompatible with current version of Windows
+            if getattr(exc, "winerror", None) not in (None, 216):
+                raise ChromeDriverVersionError(f"Failed to get ChromeDriver version: {exc}") from exc
+            return "0.0.0.0"
         if out.returncode != 0:
             raise ChromeDriverVersionError(f"Failed to get ChromeDriver version, returned {out}")
         chromedriver_version = out.stdout.decode().split()[1]
@@ -231,7 +247,8 @@ class ChromeManager(webdriver.WebDriver):
         fp.seek(0)
         with ZipFile(fp) as zip_file:
             for file in zip_file.infolist():
-                if file.is_dir() or "chromedriver" not in file.filename:
+                this_file_name = file.filename.rsplit("/", 1)[-1]
+                if file.is_dir() or not this_file_name == filename:
                     continue
                 file.filename = filename
                 zip_file.extract(file, path=path)
@@ -298,10 +315,20 @@ class PlatformVariables:
         else:
             raise ChromeDriverVersionError(f"{system()} operating system not supported.")
 
+    def __repr__(self):
+        return (
+            f"PlatformVariables(platform={repr(self.platform)}, "
+            f"chromedriver_filename={repr(self.chromedriver_filename)}, "
+            f"user_bin_path={repr(self.user_bin_path)}, "
+            f"user_data_path={repr(self.user_data_path)}, "
+            f"chrome_version_command={repr(self.chrome_version_command)}, "
+            f"chrome_for_testing_version_command={repr(self.chrome_for_testing_version_command)})"
+        )
+
     def _set_windows(self):
-        self.platform = "win32"
+        self.platform = "win64" if sys.maxsize > 2**32 else "win32"
         self.chromedriver_filename = "chromedriver.exe"
-        self.user_bin_path = HOME / "AppData" / "Local" / "Microsoft" / "WindowsApps"
+        self.user_bin_path = HOME / "AppData" / "Local" / "Microsoft" / "WindowsApps" / f"chrome-{self.platform}"
         local_app_data_env = getenv("LOCALAPPDATA")
         local_app_data = Path(local_app_data_env) if local_app_data_env else (HOME / "AppData" / "Local")
         self.user_data_path = str(local_app_data / "Google" / "Chrome" / "User Data")
@@ -329,14 +356,17 @@ class PlatformVariables:
 
     def _set_linux(self):
         self.platform = "linux64"
-        self.user_bin_path = HOME / ".local" / "bin"
+        self.user_bin_path = HOME / ".local" / "bin" / f"chrome-{self.platform}"
         self.user_data_path = str(HOME / ".config" / "google-chrome" / "Default")
         self.chrome_version_command = ["google-chrome", "--version"]
-        self.chrome_for_testing_version_command = None
+        self.chrome_for_testing_version_command = ["./chrome", "--version"]
 
     def _set_mac(self, proc: str):
-        self.platform = "mac64_m1" if proc == "arm" else "mac64"
-        self.user_bin_path = Path("/usr/local/bin")
+        self.platform = "mac-arm64" if proc == "arm" else "mac-x64"
+        self.user_bin_path = Path("/usr/local/bin") / f"chrome-{self.platform}"
         self.user_data_path = str(HOME / "Library" / "Application Support" / "Google" / "Chrome" / "Default")
         self.chrome_version_command = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--version"]
-        self.chrome_for_testing_version_command = None
+        self.chrome_for_testing_version_command = [
+            "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+            "--version",
+        ]
