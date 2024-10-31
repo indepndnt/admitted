@@ -15,7 +15,6 @@ class NoTime:
     @classmethod
     def sleep(cls, value: float) -> None:
         NoTime.current_time += value
-        return
 
 
 @pytest.fixture(autouse=True)
@@ -118,13 +117,11 @@ def chromedriver():
         def _execute(self, command, params):
             self.script_counter += 1
             self.last_execute_command = command
-            return
 
         execute = _execute
 
         def execute_script(self, *a, **kw):
             self.script_counter += 1
-            return
 
         @property
         def current_url(self):

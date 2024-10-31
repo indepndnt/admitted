@@ -6,15 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "admitted"
 description = "Utility to make automating processes using Selenium and Chromedriver easier"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [ {name = "Joe Carey", email = "joe@accountingdatasolutions.com"} ]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
@@ -34,9 +35,8 @@ optional-dependencies.dev = [
     "black",
     "coverage[toml]",
     "html2text",
-    "pylint",
     "pytest",
-    "pytest-cov",
+    "ruff",
     "toml",
     "lxml-stubs",
 ]
@@ -47,62 +47,32 @@ package-dir = {"" = "src"}
 dynamic.version = {file = "VERSION"}
 
 [tool.cibuildwheel]
-build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 build-frontend = "build"
 test-command = "pytest {project}/tests --color yes"
 test-requires = "pytest"
 
 [tool.black]
 line-length = 120
-target-version = ["py310", "py311"]
+target-version = ["py310", "py311", "py312"]
 
 [tool.coverage]
 run.source = ["admitted"]
 report.skip_empty = true
 
 [tool.pytest.ini_options]
-addopts = "--cov --cov-report=xml -l -rN --color=yes --code-highlight=yes"
+addopts = "-l -rN --color=yes --code-highlight=yes"
 testpaths = ["tests"]
 python_files = "*.py"
 log_auto_indent = true
 log_cli = true
 norecursedirs = ["__pycache__", "*.egg-info", ".*", "dist"]
 
-[tool.pylint]
-main.jobs = 2
-# A comma-separated list of package or module names from where C extensions may
-# be loaded. Extensions are loading into the active Python interpreter and may
-# run arbitrary code
-main.extension-pkg-allow-list = ["lxml"]
-messages_control.disable = [
-    "bad-inline-option",
-    "deprecated-pragma",
-    "duplicate-code",
-    "file-ignored",
-    "fixme",
-    "import-error",
-    "invalid-name",
-    "locally-disabled",
-    "missing-class-docstring",
-    "missing-function-docstring",
-    "missing-module-docstring",
-    "raw-checker-failed",
-    "suppressed-message",
-    "too-few-public-methods",
-    "too-many-instance-attributes",
-    "unspecified-encoding",
-    "use-dict-literal",
-    "use-list-literal",
-]
-messages_control.enable = [
-    "c-extension-no-member",
-    "useless-suppression",
-]
-# Available formats are text, parseable, colorized, json, and msvs (visual studio).
-reports.output-format = "colorized"
-# Activate the evaluation score.
-reports.score = false
-# Expected format of line ending, e.g. empty (any line ending), LF or CRLF.
-format.expected-line-ending-format = "LF"
-# Maximum number of characters on a single line.
-format.max-line-length = 120
+[tool.ruff]
+src = ["src"]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "PL"]
+ignore = ["PLR2004", "PLR0913"]

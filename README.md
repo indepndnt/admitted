@@ -3,68 +3,50 @@ _/ədˈmɪtɪd/ verb : allowed entry (as to a place, fellowship, or privilege)_
 
 This project is very new. The API is very likely to change.
 
-This library aims to make automating tasks that require
-authentication on web sites simpler. In general it would
-be better to make HTTP requests using an appropriate
-library, but at times it is not obvious how to replicate
-the login process and you don't want to have to reverse
-engineer the site just to get your task done. That is where
+This library aims to make automating tasks that require authentication on websites simpler. In general, it would
+be better to make HTTP requests using an appropriate library, but at times it is not obvious how to replicate
+the login process, and you don't want to have to reverse engineer the site just to get your task done. That is where
 this library comes in.
 
-We use Selenium to automate a Chrome instance, and set the
-user data directory to the Chrome default so that "remember
-me" settings will persist to avoid 2FA on every instance.
-We install ChromeDriver in a user binary location and manage
-ensuring the ChromeDriver version is correct for the current
-installed Chrome version.
+We use Selenium to automate a Chrome for Testing instance, and set the user data directory to the Chrome default so that
+"remember me" settings will persist to avoid 2FA on every instance. We automatically install Chrome For Testing and
+ChromeDriver in a user binary location and manage ensuring the versions are aligned.
 
-We expose a `fetch` method to make HTTP requests to the site
-with credentials through Chrome, eliminating the need to copy
-cookies and headers; and a `direct_request` method that uses
-`urllib3` (which is also a dependency of Selenium) to make
-anonymous HTTP requests.
+We expose a `fetch` method to make HTTP requests to the site with credentials through Chrome, eliminating the need to
+copy cookies and headers; and a `direct_request` method that uses `urllib3` (which is also a dependency of Selenium) to
+make anonymous HTTP requests.
 
-We also introduce a couple of methods that support exploring
-a site's Javascript environment from within Python:
-`page.window.new_keys()` lists non-default global variables,
-and `page.window[key]` will access global variables.
-`page.browser.debug_show_page` will dump a text version of
-the current page to the console (if `html2text` is
+We also introduce a couple of methods that support exploring a site's Javascript environment from within Python:
+`page.window.new_keys()` lists non-default global variables, and `page.window[key]` will access global variables.
+`page.browser.debug_show_page` will dump a text version of the current page to the console (if `html2text` is
 installed, otherwise the raw page source).
 
 # Installation
 #### pip
 - `pip install admitted`, or
-- `pip install admitted[debug]` to include `html2text` for
-  exploratory work, or
+- `pip install admitted[debug]` to include `html2text` for exploratory work, or
 - `pip install admitted[dev]` for the development environment.
 
 #### Requirement format for this GitHub repo as a dependency
 `admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
 
 ### Chrome for Testing
-Chrome versions earlier than 115 are no longer supported.
-You need to have Chrome for Testing installed. See
-[Chrome for Testing availability](https://googlechromelabs.github.io/chrome-for-testing/)
-for download options.
+Chrome versions earlier than 115 are no longer supported. You need to have Chrome for Testing installed. See
+[Chrome for Testing availability](https://googlechromelabs.github.io/chrome-for-testing/) for download options.
 
 # Usage
 Generally, the `admitted` API is intended to follow the
 [encouraged practice of page object models](https://www.selenium.dev/documentation/test_practices/encouraged/page_object_models/)
-by establishing a pattern of defining `Page` classes each
-with one initialization method that defines selectors for
-all relevant elements on the page and one or more action
-methods defining the desired interaction with the page.
+by establishing a pattern of defining `Page` classes each with one initialization method that defines selectors for
+all relevant elements on the page and one or more action methods defining the desired interaction with the page.
 
 ### Define your Site
-The Site is a special version of a Page object that defines
-your login page and the method to complete the login action.
-All other Page objects will have a reference to this for
-testing if you are authenticated and repeating the login
+The Site is a special version of a Page object that defines your login page and the method to complete the login action.
+All other Page objects will have a reference to this for testing if you are authenticated and repeating the login
 if necessary.
 
-The default behavior of `Site.__init__` is to call the `login`
-method; this can be avoided by passing `postpone=True` to `Site`.
+The default behavior of `Site.__init__` is to call the `login` method; this can be avoided by passing `postpone=True`
+to `Site`.
 
 ```python
 from admitted import Site, Page
@@ -97,8 +79,7 @@ class MySite(Site):
 ```
 
 ### Define a Page
-The default behavior of `Page.navigate` is to call `self.site.login`
-on the first retry if navigation fails.
+The default behavior of `Page.navigate` is to call `self.site.login` on the first retry if navigation fails.
 
 ```python
 class MyPage(Page):
@@ -134,8 +115,7 @@ print(f"The length of Google's page source is {len(response.text)} characters.")
 ```
 
 ### HTTP Response API
-The `Page.window.fetch` and `Page.direct_request` methods
-both return a `Response` object with the following API.
+The `Page.window.fetch` and `Page.direct_request` methods both return a `Response` object with the following API.
 - `content` property: Response body as `bytes`.
 - `text` property: Response body as `str`, or `None`.
 - `json` property: JSON parsed response body, or `None`.
@@ -172,5 +152,5 @@ pytest -x -rN --no-cov --no-header
 ```
 
 ### Release
-A release is published to PyPI by a GitHub Action when there
-is a push to `main` with a tag. See `.github/workflows/publish.yml`.
+A release is published to PyPI by a GitHub Action when there is a push to `main` with a tag (see
+`.github/workflows/publish.yml`). Run ./release.sh to increment the version number and push with a tag.

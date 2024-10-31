@@ -38,7 +38,7 @@ class Site(BasePage):
         self.credentials = credentials
         self._login_opts = login_options
         self._init_login()
-        if not login_options.get("postpone") is True:
+        if login_options.get("postpone") is not True:
             self.login()
 
     def _init_login(self):

@@ -1,9 +1,4 @@
 import pytest
-
-# noinspection PyProtectedMember
-from admitted import _locator
-
-# noinspection PyProtectedMember
 from admitted._base import BasePage
 from admitted.exceptions import NavigationError
 

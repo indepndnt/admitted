@@ -4,6 +4,7 @@ coverage.xml
 .idea/
 __pycache__/
 .pytest_cache/
-dist/
+/build/
+/dist/
 *.note
 .venv/

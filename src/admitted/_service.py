@@ -133,6 +133,9 @@ class Service:
         except Exception:
             pass
 
+    def env_path(self) -> str:
+        return str(self.path)
+
 
 def kill_pids(driver: webdriver.WebDriver, process_ids: list[int]) -> None:
     """Function registered in `atexit` to kill Chromedriver and Chrome so we don't leave orphan processes."""
