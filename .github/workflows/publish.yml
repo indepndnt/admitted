@@ -2,8 +2,6 @@ name: Publish to PyPI
 
 on:
   push:
-    branches:
-      - 'main'
     tags:
       - '20**'
 
@@ -31,7 +29,7 @@ jobs:
         run: python -m build
 
       - name: Upload sdist as workflow artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: dist/
 
@@ -42,12 +40,12 @@ jobs:
 
     steps:
       - name: Download workflow artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: artifact
           path: dist
 
       - name: Upload to PyPI via Twine
-        uses: pypa/gh-action-pypi-publish@v1.5.1
+        uses: pypa/gh-action-pypi-publish@v1.6.4
         with:
           password: ${{ secrets.PYPI_TOKEN }}

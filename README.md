@@ -30,10 +30,6 @@ installed, otherwise the raw page source).
 #### Requirement format for this GitHub repo as a dependency
 `admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
 
-### Chrome for Testing
-Chrome versions earlier than 115 are no longer supported. You need to have Chrome for Testing installed. See
-[Chrome for Testing availability](https://googlechromelabs.github.io/chrome-for-testing/) for download options.
-
 # Usage
 Generally, the `admitted` API is intended to follow the
 [encouraged practice of page object models](https://www.selenium.dev/documentation/test_practices/encouraged/page_object_models/)
@@ -134,23 +130,9 @@ The `Page.window.fetch` and `Page.direct_request` methods both return a `Respons
 Configure pre-commit hooks to format, lint, and test code before commit.
 #### `.git/hooks/pre-commit`
 ```bash
-#!/bin/bash
-if [ -z "${VIRTUAL_ENV}" ] ; then
-  echo "Please activate your virtual environment before commit!"
-  exit 1
-fi
-root=$(git rev-parse --show-toplevel)
-black ${root} | while read line ; do
-  if [[ ${line} == "reformatted*" ]] ; then
-    len=$(($(wc -c <<< ${line})-12))
-    file=${line:12:len}
-    git add ${file}
-  fi
-done
-pylint --rcfile ${root}/pyproject.toml ${root}/src/admitted
-pytest -x -rN --no-cov --no-header
+ln -s ./pre-commit.sh .git/hooks/pre-commit
 ```
 
 ### Release
-A release is published to PyPI by a GitHub Action when there is a push to `main` with a tag (see
+A release is published to PyPI by a GitHub Action when there is a push with a version tag (see
 `.github/workflows/publish.yml`). Run ./release.sh to increment the version number and push with a tag.
