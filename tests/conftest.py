@@ -1,6 +1,6 @@
 import pytest
 from selenium.common.exceptions import WebDriverException
-from admitted._manager import ChromeManager  # noqa protected member
+from admitted._executables._manager import ChromeManager  # noqa protected member
 
 URL = "https://www.example.com"
 
@@ -96,10 +96,11 @@ class MockElement:
 @pytest.fixture()
 def chromedriver():
     class Mock(ChromeManager):
+        session_id = "test_driver"
+
         # noinspection PyUnusedLocal,PyMissingConstructor
-        def __init__(self, timeout=0, debug=False):
+        def __init__(self, timeout=0, debug=False, reuse_service=True):
             self._current_url = URL
-            self.session_id = "test_driver"
             self.callback_counter = 0
             self.script_counter = 0
             self.last_execute_command = None

@@ -7,8 +7,8 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 
 if TYPE_CHECKING:
-    from ._manager import ChromeManager
-    from .element import Element
+    from admitted._executables._manager import ChromeManager
+    from admitted.element import Element
 
 # noinspection RegExpRedundantEscape
 template_pattern = re.compile(r"\$\{\w+\}")
@@ -19,7 +19,7 @@ class Locator:
         raise NotImplementedError
 
     @property
-    def parent(self) -> ChromeManager:
+    def parent(self) -> "ChromeManager":
         raise NotImplementedError
 
     def css(

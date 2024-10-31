@@ -1,8 +1,8 @@
 from __future__ import annotations
 import logging
-from ._base import BasePage
-from ._manager import ChromeManager
-from ._url import match_url
+from admitted._base import BasePage
+from admitted._executables._manager import ChromeManager
+from admitted._url import match_url
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ class Site(BasePage):
         *,
         timeout: int = 30,
         debug: bool = False,
+        reuse_service: bool = False,
         **login_options,
     ):
         """Initialize ChromeDriver and Site instance attributes.
@@ -29,9 +30,10 @@ class Site(BasePage):
           credentials: Dictionary defining credential values required by _do_login.
           timeout: Default timeout in seconds for wait operations.
           debug: If True, will output chromedriver.log on the desktop and suppress retries.
+          reuse_service: If True and an instance of chromedriver is running, we will attach to existing process.
           login_options: Additional options for the login method. See login method for details.
         """
-        super().__init__(self._chrome_manager_class(timeout=timeout, debug=debug))
+        super().__init__(self._chrome_manager_class(timeout=timeout, debug=debug, reuse_service=reuse_service))
         self.login_url = login_url
         self.credentials = credentials
         self._login_opts = login_options
@@ -66,6 +68,7 @@ class Site(BasePage):
         These __init__ keyword arguments impact login behavior:
           postpone: If True, login will not be called on instantiation.
           start_url: Begin login by navigating to this URL, if different from `login_url`.
+          abort_url: Return without logging in if landed on this url.
           path_substr: If True, the login_url path being anywhere in the current_url path is considered a match.
           strict_query: If True, the URL query must match. Default is to ignore it.
         """
@@ -77,6 +80,7 @@ class Site(BasePage):
             "path_substr": self._login_opts.get("path_substr", False),
             "ignore_query": not self._login_opts.get("strict_query", False),
         }
+        abort_url = self._login_opts.get("abort_url")
         if not match_url(self.current_url, self.login_url, **match_kwargs):
             if "start_url" in self._login_opts:
                 url = self._login_opts["start_url"]
@@ -84,7 +88,9 @@ class Site(BasePage):
             else:
                 url = self.login_url
                 enforce_url = True
-            self._navigate(url=url, enforce_url=enforce_url, **match_kwargs)
+            self._navigate(url=url, enforce_url=enforce_url, abort_url=abort_url, **match_kwargs)
+        if abort_url and match_url(self.current_url, abort_url, **match_kwargs):
+            return self
         return self._do_login()
 
     def is_authenticated(self) -> bool:

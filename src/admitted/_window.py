@@ -79,7 +79,7 @@ class Window:
           A Response object.
         """
         request = Request(method, url, payload, headers, json_args=json_args)
-        headers = dict(request.headers)
+        headers = dict(request.headers.iteritems())
         body = getattr(request, "body", None)
         options = {"method": request.method, "cache": "no-store", "credentials": "include", "headers": headers}
         if body is not None:

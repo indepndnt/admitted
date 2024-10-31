@@ -4,8 +4,8 @@ import subprocess
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome import webdriver
 
-# noinspection PyProtectedMember
-from admitted import _manager, _service, _url, models
+from admitted import _service, _url, models
+from admitted._executables import _manager, _platform
 
 
 class MockProcess:
@@ -23,24 +23,27 @@ class MockProcess:
         return self.pid != "terminated"
 
 
-# noinspection PyUnusedLocal
-def mock_run(command, stdout, check):
-    """mock of subprocess.run, which is globally removed for tests"""
+def mock_run(output: bytes | None = None):
+    # noinspection PyUnusedLocal
+    def subprocess_run(command, stdout, check, cwd):
+        """mock of subprocess.run, which is globally removed for tests"""
 
-    class MockRun:
-        returncode = 0
-        stdout = b"Chrome(Driver) 42.42.42.42"
+        class MockRun:
+            returncode = 0
+            stdout = output or b"Google Chrome for Testing 42.42.42.42"
 
-    return MockRun()
+        return MockRun()
+
+    return subprocess_run
 
 
 def test_platform_variables():
     # Antecedent
     instances = [
-        _manager.PlatformVariables(),
-        _manager.PlatformVariables(),
-        _manager.PlatformVariables(),
-        _manager.PlatformVariables(),
+        _platform.PlatformVariables(),
+        _platform.PlatformVariables(),
+        _platform.PlatformVariables(),
+        _platform.PlatformVariables(),
     ]
 
     # Behavior
@@ -55,8 +58,7 @@ def test_platform_variables():
     assert all((isinstance(obj.user_data_path, str) for obj in instances))
     assert all(
         (
-            isinstance(obj.chrome_version_command, list)
-            and all((isinstance(o, str) for o in obj.chrome_version_command))
+            isinstance(obj.cft_version_command, list) and all((isinstance(o, str) for o in obj.cft_version_command))
             for obj in instances
         )
     )
@@ -81,28 +83,50 @@ def test_chrome_wait(chromedriver):
 
 def test_upgrade_chromedriver(monkeypatch, tmp_path):
     # Antecedent: an instance of ChromeManager
-    # force the call to direct_request to return a mock chromedriver zip file
-    zip_content = (
-        b"PK\x03\x04\x14\x00\x00\x00\x08\x00\xc7j=Uh\x1f\xac\x8d\x0e\x00\x00\x00\x0c\x00\x00\x00\x11\x00\x00\x00"
-        b"chromedriver_testK\xce(\xca\xcfMM)\xca,K-\x02\x00PK\x01\x02\x14\x03\x14\x00\x00\x00\x08\x00\xc7j=Uh\x1f\xac"
-        b"\x8d\x0e\x00\x00\x00\x0c\x00\x00\x00\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa4\x81\x00\x00\x00\x00"
-        b"chromedriver_testPK\x05\x06\x00\x00\x00\x00\x01\x00\x01\x00?\x00\x00\x00=\x00\x00\x00\x00\x00"
-    )
-    # noinspection PyTypeChecker
-    response = models.Response(url="", status=200, reason="OK", headers=None)
-    response._content = zip_content
-    monkeypatch.setattr(_url, "direct_request", lambda *a, **kw: response)
+
+    def mock_direct_request(m, u, **kw):
+        # noinspection PyTypeChecker
+        response = models.Response(url="", status=200, reason="OK", headers=None)
+        if u.endswith("downloads.json"):
+            response._json = {
+                "versions": [
+                    {
+                        "downloads": {
+                            pkg: [
+                                {"platform": "linux64", "url": ""},
+                                {"platform": "mac-arm64", "url": ""},
+                                {"platform": "mac-x64", "url": ""},
+                                {"platform": "win32", "url": ""},
+                                {"platform": "win64", "url": ""},
+                            ]
+                            for pkg in ("chrome", "chromedriver", "chrome-headless-shell")
+                        }
+                    }
+                ]
+            }
+        else:
+            # force the call to direct_request to return a mock chromedriver zip file
+            response._content = (
+                b"PK\x03\x04\x14\x00\x00\x00\x08\x00\xc7j=Uh\x1f\xac\x8d\x0e\x00\x00\x00\x0c\x00\x00\x00\x11\x00\x00"
+                b"\x00chromedriver_testK\xce(\xca\xcfMM)\xca,K-\x02\x00PK\x01\x02\x14\x03\x14\x00\x00\x00\x08\x00\xc7"
+                b"j=Uh\x1f\xac\x8d\x0e\x00\x00\x00\x0c\x00\x00\x00\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa4"
+                b"\x81\x00\x00\x00\x00chromedriver_testPK\x05\x06\x00\x00\x00\x00\x01\x00\x01\x00?\x00\x00\x00=\x00"
+                b"\x00\x00\x00\x00"
+            )
+        return response
+
+    monkeypatch.setattr(_url, "direct_request", mock_direct_request)
     # set platform variables such that ChromeManager will expect what's in our zip file
-    _manager.ChromeManager._platform_vars = _manager.PlatformVariables()
+    _manager.ChromeManager._platform_vars = _platform.PlatformVariables()
     _manager.ChromeManager._platform_vars.chromedriver_filename = "chromedriver_test"
     _manager.ChromeManager._platform_vars.user_bin_path = tmp_path
     # force calls to subprocess.run to return our chrome/chromedriver version of 42.42.42.42
-    subprocess.run = mock_run
+    subprocess.run = mock_run()
     # create the instance
     instance = object.__new__(_manager.ChromeManager)
 
     # Behavior: call the _upgrade_chromedriver method
-    instance._upgrade_chromedriver("42.42.42.42")
+    instance._install_chromedriver()
     subprocess.run = None
 
     # Consequence: ChromeManager downloaded and installed chromedriver version 42.42.42.42
@@ -113,12 +137,12 @@ def test_upgrade_chromedriver(monkeypatch, tmp_path):
 
 def test_get_chrome_version():
     # Antecedent: an instance of ChromeManager
-    subprocess.run = mock_run
-    _manager.ChromeManager._platform_vars = _manager.PlatformVariables()
+    subprocess.run = mock_run()
+    _manager.ChromeManager._platform_vars = _platform.PlatformVariables()
     instance = object.__new__(_manager.ChromeManager)
 
     # Behavior
-    version = instance._get_chrome_version()
+    version = instance._get_chrome_for_testing_version()
     subprocess.run = None
 
     # Consequence
@@ -128,12 +152,12 @@ def test_get_chrome_version():
 def test_instantiate_chrome_manager(monkeypatch):
     # Antecedent: an environment for instantiating ChromeManager
     monkeypatch.setattr(webdriver.WebDriver, "start_session", lambda *a, **kw: None)
-    monkeypatch.setattr(_manager.ChromeManager, "_upgrade_chromedriver", lambda *a: None)
+    monkeypatch.setattr(_manager.ChromeManager, "_check_chrome_for_testing", lambda *a: None)
     # noinspection PyTypeChecker
     response = models.Response(url="", status=200, reason="OK", headers=None)
     response._text = "42.42.42.43"
     monkeypatch.setattr(_url, "direct_request", lambda *a, **kw: response)
-    subprocess.run = mock_run
+    subprocess.run = mock_run()
 
     def mock_start(self):
         self.process = MockProcess()

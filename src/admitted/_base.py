@@ -4,9 +4,10 @@ import time
 from typing import Callable
 from warnings import warn
 from selenium.common.exceptions import WebDriverException
-from . import _locator, _manager, _url, _window
+from . import _locator, _url, _window
 from .element import Element
 from .exceptions import NavigationError
+from admitted._executables import _manager
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ class BasePage(_locator.Locator):
         retry_wait: int = 2,
         retries_override: int | None = None,
         enforce_url: bool | str = True,
+        abort_url: str | None = None,
         **match_kwargs,
     ) -> None:
         """Navigate Chrome to the specified URL, retrying with exponential back-off.
@@ -101,6 +103,9 @@ class BasePage(_locator.Locator):
             retry += 1
             # check if callback signals exit
             if callback is not None and callback(retry):
+                break
+            # check for short circuit
+            if abort_url and _url.match_url(self.current_url, abort_url, **match_kwargs):
                 break
             # if we've exhausted retries, raise the error
             if retry > retries:
