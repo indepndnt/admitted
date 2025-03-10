@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 class ChromeManager(webdriver.WebDriver):
     """Container to manage the Selenium Chrome WebDriver instance and ChromeDriver executable.
 
-    Google Chrome for Testing should already be installed, and this class will manage upgrading
-    ChromeDriver to the appropriate version when necessary. ChromeDriver is installed into a user
-    binary folder so that admin/superuser rights are not required.
+    This class will manage installing and upgrading Google Chrome for Testing and ChromeDriver
+    to the appropriate versions in a user binary folder so that admin/superuser rights are not
+    required.
 
     Attributes
       driver (selenium.webdriver.Chrome): the Selenium Chrome WebDriver instance
@@ -122,9 +122,9 @@ class ChromeManager(webdriver.WebDriver):
 
         chromedriver_version = self._get_chromedriver_version()
         if cft_version != chromedriver_version:
-            self._install_chromedriver()
+            self._install_chromedriver(cft_version)
 
-    def _get_chrome_for_testing_version(self) -> str:
+    def _get_chrome_for_testing_version(self) -> str | None:
         """Return the current Google Chrome for Testing version on this system."""
         out = subprocess.run(
             self._var.cft_version_command,
@@ -134,7 +134,7 @@ class ChromeManager(webdriver.WebDriver):
         )
         if out.returncode == 1:
             # return code 1 probably means it's not installed
-            return ""
+            return None
         elif out.returncode != 0:
             raise ChromeDriverVersionError(f"Failed to get Chrome for Testing version, returned {out}")
         result = out.stdout.decode()
@@ -162,12 +162,20 @@ class ChromeManager(webdriver.WebDriver):
             raise ChromeDriverVersionError(f"Failed to get ChromeDriver version, returned {out}")
         return match[1]
 
-    def _get_cft_url(self, key: str) -> str:
+    def _get_cft_url(self, key: str, target_version: str | None = None) -> str:
         if key not in self._var.download_urls:
             versions = _url.direct_request(
                 "GET", "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
             ).json["versions"]
-            downloads = versions[-1]["downloads"]
+            if target_version is None:
+                downloads = versions[-1]["downloads"]
+            else:
+                for opt in versions.values():
+                    if opt["version"] == target_version:
+                        downloads = opt["downloads"]
+                        break
+                else:
+                    raise ChromeDriverVersionError(f"Version {target_version} of {key} not found.")
             for pkg in downloads:
                 dl = next((dl for dl in downloads[pkg] if dl["platform"] == self._var.platform), None)
                 if dl:
@@ -189,9 +197,9 @@ class ChromeManager(webdriver.WebDriver):
         fp.close()
         return self._get_chrome_for_testing_version()
 
-    def _install_chromedriver(self) -> None:
+    def _install_chromedriver(self, cft_version: str | None) -> None:
         """Download, unzip, and install program into user's local bin folder."""
-        url = self._get_cft_url("chromedriver")
+        url = self._get_cft_url("chromedriver", cft_version)
         fp = _url.direct_request("GET", url, stream=True).write_stream(TemporaryFile())
         # replace current chromedriver with downloaded version
         path = self._var.user_bin_path

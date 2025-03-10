@@ -126,7 +126,7 @@ def test_upgrade_chromedriver(monkeypatch, tmp_path):
     instance = object.__new__(_manager.ChromeManager)
 
     # Behavior: call the _upgrade_chromedriver method
-    instance._install_chromedriver()
+    instance._install_chromedriver(None)
     subprocess.run = None
 
     # Consequence: ChromeManager downloaded and installed chromedriver version 42.42.42.42

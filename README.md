@@ -28,7 +28,7 @@ installed, otherwise the raw page source).
 - `pip install admitted[dev]` for the development environment.
 
 #### Requirement format for this GitHub repo as a dependency
-`admitted @ git+https://git@github.com/Accounting-Data-Solutions/admitted@main`
+`admitted @ git+https://git@github.com/indepndnt/admitted@main`
 
 # Usage
 Generally, the `admitted` API is intended to follow the
