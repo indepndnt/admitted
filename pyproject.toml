@@ -43,9 +43,11 @@ optional-dependencies.dev = [
 ]
 
 [tool.setuptools]
-packages = ["admitted"]
-package-dir = {"" = "src"}
 dynamic.version = {file = "VERSION"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
 
 [tool.cibuildwheel]
 build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*"]
